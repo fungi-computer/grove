@@ -1,0 +1,170 @@
+{
+  "name": "@fungi.computer/grove",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit",
+    "lint": "eslint src workbench test backend .ladle --max-warnings=0"
+  },
+  "dependencies": {
+    "@fungi.computer/agar": "0.1.0",
+    "@fungi.computer/cairn": "0.0.1",
+    "@fungi.computer/caps": "0.0.2",
+    "@fungi.computer/knapsack": "0.0.2",
+    "@fungi.computer/maosaico": "0.0.1",
+    "@fungi.computer/parakeet": "0.0.1",
+    "@fungi.computer/shiitake": "0.1.0",
+    "@fungi.computer/sigils": "0.0.1",
+    "@fungi.computer/stipe": "0.0.1",
+    "@fungi.computer/whistle": "0.0.1",
+    "@tanstack/react-query": "5.102.8",
+    "@tanstack/react-router": "1.170.28",
+    "@tanstack/react-virtual": "3.14.10",
+    "effect": "4.0.2",
+    "eventsource": "5.1.1",
+    "lucide-react": "0.460.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "4.4.3",
+    "@fungi.computer/shiitake-extensions": "0.0.1",
+    "@fungi.computer/gills": "0.0.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260828.1",
+    "@fungi.computer/parakeet-testing": "0.0.1",
+    "@ladle/react": "5.1.1",
+    "@tailwindcss/vite": "4.2.1",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.3",
+    "@vitejs/plugin-react": "6.1.1",
+    "playwright": "1.62.1",
+    "typescript": "5.9.3",
+    "undici": "8.11.2",
+    "vite": "8.2.2",
+    "vitest": "4.1.11",
+    "eslint": "10.9.1",
+    "jsdom": "29.0.1",
+    "@types/node": "24.13.3",
+    "@tailwindcss/cli": "4.2.1"
+  },
+  "fungi": {
+    "build": {
+      "stylesheets": [
+        "src/grove.css"
+      ],
+      "react": true,
+      "packageStylesheets": [
+        "@fungi.computer/caps",
+        "@fungi.computer/parakeet"
+      ]
+    },
+    "app": {
+      "icon": "chat",
+      "capabilities": [
+        "agent.list",
+        "agent.manage",
+        "agent.rename",
+        "agent.toolPolicy",
+        "agent.read",
+        "agent.send",
+        "channels.read",
+        "channels.personal.manage"
+      ],
+      "handlers": [],
+      "roles": [
+        "inbox",
+        "sessions"
+      ],
+      "commands": [
+        {
+          "id": "new-conversation",
+          "title": "New conversation",
+          "category": "Conversation",
+          "description": "Start a new conversation with this Agent",
+          "projections": {
+            "slash": {
+              "aliases": [
+                "new"
+              ],
+              "order": 20
+            },
+            "palette": {}
+          }
+        },
+        {
+          "id": "permissions",
+          "title": "App permissions",
+          "category": "Conversation",
+          "description": "Review what Grove may access",
+          "projections": {
+            "slash": {
+              "aliases": [
+                "permissions"
+              ],
+              "order": 21
+            },
+            "palette": {}
+          }
+        }
+      ],
+      "displayName": "Grove",
+      "backend": {
+        "bindings": [
+          {
+            "name": "INBOX",
+            "operations": [
+              "page",
+              "visit"
+            ]
+          },
+          {
+            "name": "AGENTS",
+            "operations": [
+              "send"
+            ]
+          }
+        ]
+      }
+    },
+    "backendDefinition": "backend/methods.ts"
+  },
+  "author": "Levi <levi@technomancy.dev>",
+  "type": "module",
+  "description": "Grove: conversations with agents that call your other Apps, for Oyster",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fungi-computer/grove.git"
+  },
+  "botanical": {
+    "role": "app",
+    "operations": {
+      "lint": "required",
+      "typecheck": "required",
+      "build": "required",
+      "test": "required",
+      "docs": {
+        "status": "not-applicable",
+        "reason": "Private App"
+      },
+      "pack": {
+        "status": "not-applicable",
+        "reason": "Private App"
+      },
+      "smoke": {
+        "status": "not-applicable",
+        "reason": "Mounted Hub witness"
+      },
+      "stranger": {
+        "status": "not-applicable",
+        "reason": "Private App"
+      }
+    }
+  },
+  "packageManager": "pnpm@11.24.0"
+}
