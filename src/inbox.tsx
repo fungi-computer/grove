@@ -22,6 +22,7 @@ import {
 } from "./inbox-model.js";
 import {
   agentManage,
+  agentAvatar,
   agentList,
   agentRename,
   agentSessionWrite,
@@ -37,7 +38,10 @@ import { createWhistle } from "@fungi.computer/whistle";
 import type { RowV1 } from "@fungi.computer/gills";
 import { defineIdFamily } from "@fungi.computer/cairn/id";
 import type { ParakeetSession } from "@fungi.computer/parakeet";
-import { ShiitakeAvatar } from "@fungi.computer/parakeet";
+import {
+  ShiitakeAvatar,
+  type AgentHeadActivity,
+} from "@fungi.computer/parakeet";
 import {
   contributeSessionCommands,
   sessionQueryOptions,
@@ -48,6 +52,8 @@ import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useAppContext, useWindowStatus } from "@fungi.computer/agar/react";
 import { queryKeys } from "@fungi.computer/agar/query";
 import { useInboxData, useAgentToolPolicy } from "./queries.js";
+import { AgentAvatarControl } from "./agent-avatar-control.js";
+import type { Avatar } from "@fungi.computer/sprite/avatar";
 import { createShiitakeClient } from "@fungi.computer/shiitake/client";
 import {
   lazy,
@@ -251,6 +257,7 @@ function ConnectedInbox({
     inbox,
     createAgent: createAgentMutation,
     renameAgent: renameAgentMutation,
+    setAgentAvatar: setAgentAvatarMutation,
   } = useInboxData(connection);
   const agents = directory.data ?? [];
   const directoryLoading =
@@ -645,6 +652,16 @@ function ConnectedInbox({
       openState,
     ],
   );
+  const agentActivity = useMemo(() => {
+    const activity = new Map<string, AgentHeadActivity>();
+    for (const row of sessions) {
+      if (!("state" in row)) continue;
+      if (row.state === "needs_you") activity.set(row.agentId, "speaking");
+      else if (row.state === "running" && !activity.has(row.agentId))
+        activity.set(row.agentId, "thinking");
+    }
+    return activity;
+  }, [sessions]);
   const agentById = useMemo(
     () => new Map(agents.map((agent) => [agent.agentId, agent])),
     [agents],
@@ -730,6 +747,13 @@ function ConnectedInbox({
     setNavOpen(false);
     selectSession(agentId, sessionId);
   };
+  const openNavigationSheet = () => {
+    navigationReturnFocus.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    setNavOpen(true);
+  };
   useWindowStatus(
     connection,
     desktop
@@ -765,12 +789,8 @@ function ConnectedInbox({
       } else if (desktop && action.itemId === "conversations") {
         setListRailOpen((open) => !open);
       } else if (!desktop && action.itemId === "agents") {
-        if (!navOpen)
-          navigationReturnFocus.current =
-            document.activeElement instanceof HTMLElement
-              ? document.activeElement
-              : null;
-        setNavOpen((open) => !open);
+        if (navOpen) setNavOpen(false);
+        else openNavigationSheet();
       } else return false;
       return true;
     },
@@ -794,6 +814,7 @@ function ConnectedInbox({
     ? agentById.get(besideConversation.agentId)
     : undefined;
   const canRenameAgent = connection?.capabilities.has(agentRename) ?? false;
+  const canSetAgentAvatar = connection?.capabilities.has(agentAvatar) ?? false;
   const toolPolicy = useAgentToolPolicy(connection, openAgent?.agentId ?? null);
   const openTitle =
     openRow !== undefined && openRow.state !== "unavailable"
@@ -814,6 +835,19 @@ function ConnectedInbox({
       }
     },
     [connection, renameAgentMutation.mutateAsync],
+  );
+  const setAgentAvatar = useCallback(
+    async (agentId: string, avatar: Avatar): Promise<boolean> => {
+      if (!connection) return false;
+      try {
+        await setAgentAvatarMutation.mutateAsync({ agentId, avatar });
+        return true;
+      } catch {
+        // The dialog stays open on the draft; the next Save retries.
+        return false;
+      }
+    },
+    [connection, setAgentAvatarMutation.mutateAsync],
   );
   const approveAgentTools = useCallback(() => {
     const status = toolPolicy.status.data;
@@ -955,6 +989,7 @@ function ConnectedInbox({
         <AgentRail
           open={agentRailOpen}
           agents={agents}
+          agentActivity={agentActivity}
           agentFilterId={agentFilterId}
           websitesSelected={websitesOnly}
           websitesVisible={websites.canRead}
@@ -1163,12 +1198,24 @@ function ConnectedInbox({
         aria-label="Conversation"
       >
         <header className="grove-head flex h-10 flex-none items-center gap-2 border-b border-base-300 px-2 text-xs">
+          {desktop || (!websites.selected && !openAgent) ? null : (
+            <Button
+              variant="outline"
+              size="sm"
+              aria-haspopup="dialog"
+              aria-controls="grove-nav"
+              aria-expanded={navOpen}
+              onClick={openNavigationSheet}
+            >
+              Agents and conversations
+            </Button>
+          )}
           {websites.selected ? (
             <nav
               aria-label="Breadcrumb"
               className="flex min-w-0 flex-1 items-center gap-1.5"
             >
-              <Sigil name="connected" size={14} />
+              <Sigil name="internet" size={14} />
               <DataListHeading className="min-w-0 truncate">
                 {websites.selected.siteLabel}
               </DataListHeading>
@@ -1182,6 +1229,14 @@ function ConnectedInbox({
               aria-label="Breadcrumb"
               className="flex min-w-0 flex-1 items-center gap-1.5"
             >
+              <AgentAvatarControl
+                // Remount on agent switch, like the rename control below.
+                key={`avatar-${openAgent.agentId}`}
+                agentId={openAgent.agentId}
+                name={agentLabel(openAgent)}
+                avatar={openAgent.avatar}
+                {...(canSetAgentAvatar ? { setAvatar: setAgentAvatar } : {})}
+              />
               <DataListHeading className="flex-none">
                 {agentLabel(openAgent)}
               </DataListHeading>
@@ -1294,18 +1349,31 @@ function ConnectedInbox({
                   : "Ask for anything. Try: “Make me a tiny game where a mushroom catches raindrops.”"
               }
               actions={
-                canStart ? (
-                  <Button
-                    variant="outline"
-                    loading={startingAgentId === startAgent.agentId}
-                    disabled={startingAgentId !== null}
-                    onClick={() => void startConversation(startAgent.agentId)}
-                  >
-                    {listed > 0
-                      ? `Ask ${agentLabel(startAgent)} something`
-                      : "Start a conversation"}
-                  </Button>
-                ) : undefined
+                <>
+                  {desktop || listed === 0 ? null : (
+                    <Button
+                      variant="outline"
+                      aria-haspopup="dialog"
+                      aria-controls="grove-nav"
+                      aria-expanded={navOpen}
+                      onClick={openNavigationSheet}
+                    >
+                      Agents and conversations
+                    </Button>
+                  )}
+                  {canStart ? (
+                    <Button
+                      variant="outline"
+                      loading={startingAgentId === startAgent.agentId}
+                      disabled={startingAgentId !== null}
+                      onClick={() => void startConversation(startAgent.agentId)}
+                    >
+                      {listed > 0
+                        ? `Ask ${agentLabel(startAgent)} something`
+                        : "Start a conversation"}
+                    </Button>
+                  ) : null}
+                </>
               }
             />
           ))

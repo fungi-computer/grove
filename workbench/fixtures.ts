@@ -1,3 +1,4 @@
+import { seededAvatar } from "@fungi.computer/sprite/avatar";
 import {
   inertHostNavigation,
   createCapabilityRegistry,
@@ -7,6 +8,7 @@ import {
 } from "@fungi.computer/agar";
 import type { GameSharePreview } from "../src/game-share-card.js";
 import {
+  agentAvatar,
   agentManage,
   agentList,
   agentSessionWrite,
@@ -851,10 +853,38 @@ export function createGroveFixture(
     "agent.send",
     "agent.manage",
   ] as const;
-  const agents: readonly AppAgent[] = [
-    { agentId: "gardener", name: "Gardener", sessionOperations },
-    { agentId: "librarian", name: "Librarian", sessionOperations },
-    { agentId: "maker", name: "Maker", sessionOperations },
+  // Each Agent wears its own avatar: two chosen looks and one seeded default.
+  const agents: AppAgent[] = [
+    {
+      agentId: "gardener",
+      name: "Gardener",
+      avatar: {
+        v: 1,
+        character: "cat",
+        appearance: { body: "#9bd47a", stripes: "#e6f8d8" },
+        expression: "normal",
+        renderStyle: "plain",
+      },
+      sessionOperations,
+    },
+    {
+      agentId: "librarian",
+      name: "Librarian",
+      avatar: {
+        v: 1,
+        character: "burger",
+        appearance: { topBun: "#9b8cf0", bottomBun: "#ebe6ff" },
+        expression: "normal",
+        renderStyle: "plain",
+      },
+      sessionOperations,
+    },
+    {
+      agentId: "maker",
+      name: "Maker",
+      avatar: seededAvatar("maker"),
+      sessionOperations,
+    },
   ];
   const now = Date.now();
   let directoryFailed = false;
@@ -969,14 +999,30 @@ export function createGroveFixture(
   if (scenario !== "no-agent-access")
     capabilities.provide(agentManage, {
       open: unsupported,
-      create: ({ name }) => {
+      create: ({ name, avatar }) => {
         const agent = {
           agentId: `created-${String(createdAgents.length + 1)}`,
           name,
+          avatar:
+            avatar ??
+            seededAvatar(`created-${String(createdAgents.length + 1)}`),
           sessionOperations,
         };
         createdAgents.push(agent);
         return Promise.resolve(agent);
+      },
+    });
+  if (scenario !== "no-agent-access")
+    capabilities.provide(agentAvatar, {
+      setAvatar: ({ agentId, avatar }) => {
+        for (const list of [agents, createdAgents]) {
+          const index = list.findIndex((agent) => agent.agentId === agentId);
+          if (index === -1) continue;
+          const updated = { ...list[index], avatar };
+          list[index] = updated;
+          return Promise.resolve(updated);
+        }
+        return Promise.reject(new Error("No such Agent"));
       },
     });
   capabilities.provide(agentSessionWrite, {

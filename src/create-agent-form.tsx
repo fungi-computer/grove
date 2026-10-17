@@ -2,7 +2,8 @@ import {
   appAgentComputerSchema,
   type AppAgentCreateInput,
 } from "@fungi.computer/agar/agents";
-import { useMemo, useRef, type Ref } from "react";
+import { seededAvatar, type Avatar } from "@fungi.computer/sprite/avatar";
+import { useMemo, useRef, useState, type Ref } from "react";
 import { Option, Schema } from "effect";
 import { defineIdFamily } from "@fungi.computer/cairn/id";
 import {
@@ -15,6 +16,7 @@ import {
 import { FormFooter } from "@fungi.computer/caps/components/field";
 import { Button } from "@fungi.computer/caps/components/button";
 import { Input } from "@fungi.computer/caps/components/input";
+import { AgentAvatarPicker } from "./agent-avatar-picker.js";
 
 const nameSchema = Schema.Trim.check(
   Schema.isMinLength(1, { message: "Give your Agent a name." }),
@@ -49,6 +51,11 @@ export function CreateAgentForm({
   onCancel: () => void;
 }) {
   const intent = useRef<AppAgentCreateInput | null>(null);
+  // The avatar is a structured choice beside the form's text fields; a fresh
+  // seeded look per form keeps two new Agents from defaulting to one colour.
+  const [avatar, setAvatar] = useState<Avatar>(() =>
+    seededAvatar(requests.request.generate()),
+  );
   const schema = useMemo(
     () =>
       Schema.Struct({
@@ -87,8 +94,16 @@ export function CreateAgentForm({
     onSubmit: async ({ name, computer: selectedComputer }) => {
       const computer = canChooseComputer ? selectedComputer : undefined;
       let request = intent.current;
-      if (request?.name !== name || request.computer !== computer) {
-        const identity = { name, requestId: requests.request.generate() };
+      if (
+        request?.name !== name ||
+        request.computer !== computer ||
+        request.avatar !== avatar
+      ) {
+        const identity = {
+          name,
+          requestId: requests.request.generate(),
+          avatar,
+        };
         request = computer === undefined ? identity : { ...identity, computer };
       }
       intent.current = request;
@@ -151,6 +166,19 @@ export function CreateAgentForm({
         model={model}
         names={canChooseComputer ? ["name", "computer"] : ["name"]}
       />
+      <fieldset className="flex flex-col gap-xs">
+        <legend className="caps-label mb-xs text-sm font-semibold text-base-content">
+          Avatar
+        </legend>
+        <AgentAvatarPicker
+          value={avatar}
+          disabled={submitting}
+          onChange={(next) => {
+            setAvatar(next);
+            intent.current = null;
+          }}
+        />
+      </fieldset>
     </SchemaForm>
   );
 }

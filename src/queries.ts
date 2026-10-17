@@ -7,7 +7,10 @@ import {
   agentToolPolicy,
   createAppAgent,
   renameAppAgent,
+  setAppAgentAvatar,
   type AppAgent,
+  type AppAgentAvatarInput,
+  type AppAgentCreateInput,
   type AppAgentToolPolicyStatus,
 } from "@fungi.computer/agar/agents";
 import {
@@ -50,7 +53,7 @@ export function useInboxData(app: AppRoot | null) {
     if (unknownAgents !== "[]" && inbox.items.length > 0) void refetch();
   }, [unknownAgents, inbox.items, refetch]);
   const createAgent = useMutation({
-    mutationFn: (intent: { name: string; requestId: string }) => {
+    mutationFn: (intent: AppAgentCreateInput) => {
       if (!app) throw new Error("No App connection");
       return createAppAgent(app.capabilities, intent);
     },
@@ -76,7 +79,18 @@ export function useInboxData(app: AppRoot | null) {
       );
     },
   });
-  return { directory, inbox, createAgent, renameAgent };
+  const setAgentAvatar = useMutation({
+    mutationFn: (intent: AppAgentAvatarInput) => {
+      if (!app) throw new Error("No App connection");
+      return setAppAgentAvatar(app.capabilities, intent);
+    },
+    onSuccess: (agent) => {
+      client.setQueryData<readonly AppAgent[]>(directoryKey, (previous = []) =>
+        previous.map((item) => (item.agentId === agent.agentId ? agent : item)),
+      );
+    },
+  });
+  return { directory, inbox, createAgent, renameAgent, setAgentAvatar };
 }
 
 /** Whether the open Agent's App-tool policy still awaits the owner's approval. */

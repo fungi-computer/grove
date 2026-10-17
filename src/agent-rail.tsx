@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import type { AppAgent } from "@fungi.computer/agar/agents";
 import { Button } from "@fungi.computer/caps/components/button";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
-import { AgentHead } from "@fungi.computer/parakeet";
+import { AgentHead, type AgentHeadActivity } from "@fungi.computer/parakeet";
 import { Sigil } from "@fungi.computer/sigils";
 import { Plus } from "lucide-react";
+import { useState } from "react";
 import { agentLabel } from "./inbox-model.js";
 
 function RailMark({ children }: { children: ReactNode }) {
@@ -19,6 +20,7 @@ function RailMark({ children }: { children: ReactNode }) {
 export function AgentRail({
   open,
   agents,
+  agentActivity,
   agentFilterId,
   websitesSelected,
   websitesVisible,
@@ -31,6 +33,8 @@ export function AgentRail({
 }: {
   open: boolean;
   agents: readonly AppAgent[];
+  /** Agents with a Session waiting on you or working; others are at rest. */
+  agentActivity: ReadonlyMap<string, AgentHeadActivity>;
   agentFilterId: string | null;
   websitesSelected: boolean;
   websitesVisible: boolean;
@@ -41,6 +45,7 @@ export function AgentRail({
   onAgent: (agentId: string) => void;
   onCreate: () => void;
 }) {
+  const [attended, setAttended] = useState<string | null>(null);
   const cell = "grove-rail-cell relative size-12 rounded-field p-0";
   const allSelected =
     agentFilterId === null && !(websitesSelected && websitesVisible);
@@ -68,7 +73,7 @@ export function AgentRail({
           onClick={onWebsites}
         >
           <RailMark>
-            <Sigil name="connected" size={28} />
+            <Sigil name="internet" size={28} />
           </RailMark>
         </Button>
       ) : null}
@@ -85,14 +90,30 @@ export function AgentRail({
               }
               data-agent-id={agent.agentId}
               className={`${cell} ${agentFilterId === agent.agentId && !websitesSelected ? "bg-base-300" : ""}`}
+              onPointerEnter={() => {
+                setAttended(agent.agentId);
+              }}
+              onPointerLeave={() => {
+                setAttended(null);
+              }}
+              onFocus={() => {
+                setAttended(agent.agentId);
+              }}
+              onBlur={() => {
+                setAttended(null);
+              }}
               onClick={() => {
                 onAgent(agent.agentId);
               }}
             >
               <RailMark>
                 <AgentHead
+                  activity={
+                    agentActivity.get(agent.agentId) ??
+                    (attended === agent.agentId ? "thinking" : "idle")
+                  }
+                  avatar={agent.avatar}
                   name={agentLabel(agent)}
-                  seed={agent.agentId}
                   size={32}
                 />
               </RailMark>

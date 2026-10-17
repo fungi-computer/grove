@@ -304,7 +304,7 @@ export function InboxList({
                   label={row.website.conversation.label || "Website visitor"}
                   description={
                     <span className="inline-flex items-center gap-1">
-                      <Sigil name="connected" size={14} />
+                      <Sigil name="internet" size={14} />
                       {row.website.siteLabel}
                     </span>
                   }

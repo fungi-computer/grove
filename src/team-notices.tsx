@@ -10,7 +10,7 @@ import { queryKeys } from "@fungi.computer/agar/query";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { DataList, DataRow } from "@fungi.computer/caps/components/data-list";
-import { StatusLed } from "@fungi.computer/caps/components/field-guide";
+import { Status } from "@fungi.computer/caps/components/status";
 import { Button } from "@fungi.computer/caps/components/button";
 
 /** Durable Team notices remain visible independently of Agent/session filters. */
@@ -45,9 +45,10 @@ export function TeamNotices({ app }: { app: AppRoot | null }) {
             {notices.data.items.map((notice) => (
               <DataRow key={notice.dispositionId}>
                 <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-[var(--spacing-xs)]">
-                  <StatusLed
-                    className="col-span-2 grid grid-cols-subgrid [--caps-led-color:var(--color-warning)]"
-                    active
+                  <Status
+                    className="col-span-2 grid grid-cols-subgrid"
+                    size="compact"
+                    tone="warning"
                     label={
                       "kind" in notice
                         ? "Seller closed"
