@@ -25,7 +25,7 @@ import {
   type InboxView,
   type InboxPlacement,
 } from "./inbox-model.js";
-import type { PendingSelection } from "./conversation-opening.js";
+import type { PendingSelection } from "@fungi.computer/parakeet/conversation-opening";
 
 type Row =
   | { kind: "heading"; key: string; title: string; gap: boolean }

@@ -60,6 +60,8 @@ export function createWebsiteReplySession(
     return { status: "recorded" };
   }
   return {
+    latestPending: () => Promise.resolve(null),
+    withdraw: (requestId) => source.withdraw(requestId),
     address: source.address,
     read: (options) => source.read(options),
     watch: (options) => source.watch(options),

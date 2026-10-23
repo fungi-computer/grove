@@ -34,7 +34,7 @@ import {
   createConversationOpeningOwner,
   type OpenConversation,
   type Services,
-} from "./conversation-opening.js";
+} from "@fungi.computer/parakeet/conversation-opening";
 import { createWebsiteReplySession } from "./website-reply-session.js";
 
 export type WebsiteInboxRow = Readonly<{

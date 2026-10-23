@@ -79,6 +79,7 @@ function Workbench({
 }
 
 export const Inbox = () => <Workbench />;
+export const CommandRetry = () => <Workbench scenario="command-retry" />;
 /** An open conversation streams while a foreign Session gains attention. */
 export const StableInbox = () => (
   <Workbench
@@ -103,6 +104,9 @@ export const Narrow = () => <Workbench narrow />;
 export const Loading = () => <Workbench scenario="loading" />;
 export const EmptyConversations = () => <Workbench scenario="empty" />;
 export const FailedStart = () => <Workbench scenario="start-failed" />;
+export const FailedStartOpen = () => (
+  <Conversation scenario="start-failed-open" />
+);
 export const SellerClosed = () => <Workbench scenario="seller-closed" />;
 export const SafetyNotice = () => <Workbench scenario="safety-notice" />;
 export const NoAgents = () => <Workbench scenario="no-agents" />;
@@ -158,6 +162,24 @@ export const PublishedGame: Story = () => (
     openRequest={{
       kind: "navigate",
       requestId: "grove-published-game",
+      params: [
+        { key: "agent", value: "gardener" },
+        { key: "session", value: "gardener-1" },
+      ],
+    }}
+  />
+);
+
+/** An active turn plus two queued messages, with a slow cancellation reply. */
+export const QueuedCancel = () => <Conversation scenario="queued-cancel" />;
+
+/** Paused owner queue for native browser recall and edited-resend proof. */
+export const QueuedRecall = () => (
+  <Workbench
+    scenario="queued-recall"
+    openRequest={{
+      kind: "navigate",
+      requestId: "grove-recall",
       params: [
         { key: "agent", value: "gardener" },
         { key: "session", value: "gardener-1" },
@@ -229,6 +251,7 @@ function Conversation({
   );
 }
 export const ConversationReply = () => <Conversation />;
+export const AdmissionRetry = () => <Conversation scenario="admission-retry" />;
 /** A completed Session while the bulk inbox still reports the previous run. */
 export const ConversationAnsweredInboxLag = () => (
   <Conversation scenario="conversation-answered-inbox-lag" />
@@ -250,6 +273,9 @@ export const ConversationUnavailable = () => (
 );
 export const ConversationFailed = () => (
   <Conversation scenario="conversation-failed" />
+);
+export const FailedTurnRetry = () => (
+  <Conversation scenario="failed-turn-retry" />
 );
 export const ConversationInterrupted = () => (
   <Conversation scenario="conversation-interrupted" />

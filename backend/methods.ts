@@ -25,6 +25,7 @@ export type GroveMethodContext = Readonly<{
       send(input: {
         agentId: string;
         sessionId: string;
+        requestId: string;
         text: string;
         delivery: "followUp";
       }): Promise<WhistleJsonValue>;
@@ -108,6 +109,9 @@ export const appBackend = defineAppBackend<GroveMethodContext>({
       effect: "write",
       requires: ["agent.send"],
       input: target.extend({
+        requestId: id.refine(
+          (value) => new TextEncoder().encode(value).byteLength <= 256,
+        ),
         text: z
           .string()
           .min(1)

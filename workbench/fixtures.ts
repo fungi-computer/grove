@@ -81,6 +81,7 @@ const subagentSlots = {
         },
       ],
       more: 0,
+      expanded: true,
     }),
   },
 };
@@ -93,6 +94,9 @@ export const publishedGameFixture = {
 } satisfies GameSharePreview;
 
 export type GroveScenario =
+  | "command-retry"
+  | "queued-recall"
+  | "queued-cancel"
   | "timeline"
   | "websites"
   | "websites-held"
@@ -102,6 +106,7 @@ export type GroveScenario =
   | "seller-closed"
   | "thousand"
   | "start-failed"
+  | "start-failed-open"
   | "empty"
   | "no-agents"
   | "no-agent-access"
@@ -124,6 +129,8 @@ export type GroveScenario =
   | "conversation-unavailable"
   | "conversation-queued"
   | "conversation-failed"
+  | "failed-turn-retry"
+  | "admission-retry"
   | "conversation-interrupted"
   | "conversation-cancelled"
   | "subagents";
@@ -220,24 +227,21 @@ const workbenchTheme = () => {
   } satisfies ReadonlyStore<string>;
 };
 
+type AdmissionCommand = PromptCommand | CompactCommand;
+type UnrecordedCommand =
+  AbortCommand | BranchCommand | OperatorCommand | TitleCommand;
+type PreviewResult = Accepted | CancelResult | ForkedSession | undefined;
+
 /**
  * The preview has no owner: it takes no commands, and its waiting work has
  * always "already started", so a cancel gets the owner's typed too-late answer.
  */
-function previewCommand(
-  input: PromptCommand | CompactCommand,
-): Promise<Accepted>;
+function previewCommand(input: AdmissionCommand): Promise<Accepted>;
 function previewCommand(input: CancelCommand): Promise<CancelResult>;
-function previewCommand(
-  input: AbortCommand | BranchCommand | OperatorCommand | TitleCommand,
-): Promise<undefined>;
+function previewCommand(input: UnrecordedCommand): Promise<undefined>;
 function previewCommand(input: ForkCommand): Promise<ForkedSession>;
-function previewCommand(
-  input: SessionCommand,
-): Promise<Accepted | CancelResult | ForkedSession | undefined>;
-function previewCommand(
-  input: SessionCommand,
-): Promise<Accepted | CancelResult | ForkedSession | undefined> {
+function previewCommand(input: SessionCommand): Promise<PreviewResult>;
+function previewCommand(input: SessionCommand): Promise<PreviewResult> {
   return input.type === "cancel"
     ? Promise.resolve({ status: "too_late", commandId: input.commandId })
     : unsupported();
@@ -250,6 +254,9 @@ function previewSession(
   scenario: GroveScenario,
   onTurn?: (state: "running" | "done", at: number) => void,
 ): ShiitakeSession {
+  const admittedRequests = new Map<string, string>();
+  const withdrawnRequests = new Set<string>();
+  let gardenCalls = 0;
   const index = Number(sessionId.slice(sessionId.lastIndexOf("-") + 1));
   const publishedGame =
     scenario === "published-game" && sessionId === "gardener-1";
@@ -271,6 +278,7 @@ function previewSession(
     ].includes(scenario);
   let snapshot: SessionSnapshot = {
     sessionId,
+    toolOutput: [],
     cursor: "preview:1",
     hasMore: false,
     messages:
@@ -463,11 +471,17 @@ function previewSession(
     }
   }
   if (scenario === "timeline" && sessionId === "gardener-1") {
-    const reply = snapshot.messages.find(
+    const settledReply = snapshot.messages.find(
       (message) => message.value.role === "assistant",
     )?.value;
-    if (reply?.role !== "assistant")
+    if (settledReply?.role !== "assistant")
       throw new Error("Timeline fixture needs a settled reply");
+    // A current model, not the retired camel/auto the base reply carries.
+    const reply = {
+      ...settledReply,
+      provider: "openai",
+      model: "openai/gpt-6-luna",
+    };
     const user = (
       id: string,
       sequence: number,
@@ -555,14 +569,25 @@ function previewSession(
           ],
         },
       },
+      {
+        // Another Agent's message, as the host stamps a delegated reply.
+        ...user(
+          "soil-report",
+          6,
+          "Soil test finished: pH 6.8, heavy clay, low in potassium. Add grit and a potash feed before planting.",
+        ),
+        meta: {
+          author: { id: "agent_soil", name: "Soil analyst", kind: "agent" },
+        },
+      },
       user(
         "flowers",
-        6,
+        7,
         "Nice. Can you add something that flowers in late summer?",
       ),
       assistant(
         "summer",
-        7,
+        8,
         "Add **Japanese anemones** to the south bed: they flower from August to October and are happy in part shade.\n\nToad lilies would suit the north bed too.",
         "Choose late flowers that tolerate shade.",
       ),
@@ -571,11 +596,128 @@ function previewSession(
       {
         commandId: "command-flowers",
         outcome: "completed",
-        sequence: 8,
+        sequence: 9,
         diagnostic: null,
       },
     ];
     snapshot = { ...snapshot, messages, terminals };
+  }
+  if (scenario === "failed-turn-retry") {
+    admittedRequests.set("failed-request", commandId);
+    snapshot = {
+      ...snapshot,
+      activity: idleActivity,
+      progress: null,
+      messages: [
+        {
+          id: "failed-user",
+          requestId: "failed-request",
+          commandId,
+          sequence: 1,
+          value: {
+            role: "user",
+            content: [
+              { type: "text", text: "Retry this attached frame." },
+              {
+                type: "image",
+                mimeType: "image/png",
+                data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6KQAAAABJRU5ErkJggg==",
+              },
+            ],
+            timestamp: Date.now(),
+          },
+        },
+      ],
+      terminals: [
+        {
+          commandId,
+          outcome: "failed",
+          sequence: 2,
+          diagnostic: "The worker stopped. Retry keeps the original input.",
+        },
+      ],
+    };
+  }
+  if (scenario === "admission-retry") {
+    snapshot = {
+      ...snapshot,
+      activity: queuedActivity("newer-image-command"),
+      progress: null,
+      messages: [],
+      terminals: [],
+      pending: {
+        total: 1,
+        hasMore: false,
+        prompts: [
+          {
+            commandId: "newer-image-command",
+            requestId: "newer-image-request",
+            text: "Compare this frame.",
+            delivery: "followUp",
+            images: [
+              {
+                type: "image",
+                mimeType: "image/png",
+                data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6KQAAAABJRU5ErkJggg==",
+              },
+            ],
+          },
+        ],
+      },
+    };
+  }
+  if (scenario === "queued-recall" || scenario === "queued-cancel") {
+    admittedRequests.set("request-A", "recall-A");
+    admittedRequests.set("request-B", "recall-B");
+    snapshot = {
+      ...snapshot,
+      activity: queuedActivity("recall-A"),
+      progress: null,
+      pending: {
+        total: 2,
+        hasMore: false,
+        prompts: [
+          {
+            commandId: "recall-A",
+            requestId: "request-A",
+            text:
+              scenario === "queued-cancel"
+                ? "Cancel this queued task."
+                : "A stays queued",
+            delivery: "followUp",
+          },
+          {
+            commandId: "recall-B",
+            requestId: "request-B",
+            text:
+              scenario === "queued-cancel"
+                ? "Keep this queued task."
+                : "B recall target",
+            delivery: "followUp",
+            images: [
+              {
+                type: "image",
+                data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6KQAAAABJRU5ErkJggg==",
+                mimeType: "image/png",
+              },
+            ],
+          },
+        ],
+      },
+    };
+    if (scenario === "queued-cancel")
+      snapshot = {
+        ...snapshot,
+        activity: runningActivity(),
+        progress: {
+          messageId: "queued-cancel-progress",
+          revision: 1,
+          text: "The current turn keeps running.",
+          thinking: "",
+          textTruncated: false,
+          thinkingTruncated: false,
+        },
+      };
   }
   let closeWatch: (() => void) | undefined;
   let closed = false;
@@ -601,26 +743,124 @@ function previewSession(
       }
     }
   }
-  function command(input: PromptCommand | CompactCommand): Promise<Accepted>;
-  function command(input: CancelCommand): Promise<CancelResult>;
-  function command(
-    input: AbortCommand | BranchCommand | OperatorCommand | TitleCommand,
-  ): Promise<undefined>;
-  function command(input: ForkCommand): Promise<ForkedSession>;
-  function command(
-    input: SessionCommand,
-  ): Promise<Accepted | CancelResult | ForkedSession | undefined>;
-  function command(
-    input: SessionCommand,
-  ): Promise<Accepted | CancelResult | ForkedSession | undefined> {
-    if (scenario !== "stable-inbox" || input.type !== "prompt")
-      return previewCommand(input);
+  let refuseAdmission: ((reason: Error) => void) | undefined;
+  let heldAdmission = false;
+  const modelsQueue = new Set([
+    "queued-recall",
+    "failed-turn-retry",
+    "admission-retry",
+  ]).has(scenario);
+
+  function cancelDelayed(input: CancelCommand): Promise<CancelResult> {
+    if (!input.onlyIfPending)
+      return Promise.reject(
+        new Error("Queued cancellation must be pending-only"),
+      );
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        if (
+          !snapshot.pending.prompts.some(
+            (prompt) => prompt.commandId === input.commandId,
+          )
+        ) {
+          resolve({ status: "too_late", commandId: input.commandId });
+          return;
+        }
+        const prompts = snapshot.pending.prompts.filter(
+          (prompt) => prompt.commandId !== input.commandId,
+        );
+        snapshot = {
+          ...snapshot,
+          pending: { total: prompts.length, hasMore: false, prompts },
+        };
+        publish();
+        resolve({ status: "accepted", commandId: input.commandId });
+      }, 2500);
+    });
+  }
+
+  function recallQueued(input: CancelCommand): Promise<CancelResult> {
+    if (
+      !snapshot.pending.prompts.some(
+        (prompt) => prompt.commandId === input.commandId,
+      )
+    )
+      return Promise.resolve({
+        status: "too_late",
+        commandId: input.commandId,
+      });
+    const prompts = snapshot.pending.prompts.filter(
+      (prompt) => prompt.commandId !== input.commandId,
+    );
+    snapshot = {
+      ...snapshot,
+      activity:
+        prompts.length === 0
+          ? idleActivity
+          : queuedActivity(prompts[0].commandId),
+      pending: { total: prompts.length, hasMore: false, prompts },
+    };
+    publish();
+    if (scenario === "admission-retry") {
+      // Refuse the held local request after Recall has restored its newer
+      // queued payload. The next event turn follows Recall's microtasks.
+      setTimeout(() => {
+        refuseAdmission?.(new Error("Prompt admission refused"));
+        refuseAdmission = undefined;
+      }, 0);
+    }
+    return Promise.resolve({
+      status: "accepted",
+      commandId: input.commandId,
+    });
+  }
+
+  function admitQueued(input: PromptCommand): Promise<Accepted> {
+    if (scenario === "admission-retry" && !heldAdmission) {
+      heldAdmission = true;
+      return new Promise((_resolve, reject) => {
+        refuseAdmission = reject;
+      });
+    }
+    if (withdrawnRequests.has(input.requestId))
+      return Promise.reject(new Error("Request was withdrawn"));
+    const prior = admittedRequests.get(input.requestId);
+    if (prior !== undefined)
+      return Promise.resolve({ status: "accepted", commandId: prior });
+    const commandId = `preview-${input.requestId}`;
+    admittedRequests.set(input.requestId, commandId);
+    const prompt = {
+      commandId,
+      requestId: input.requestId,
+      text: input.text,
+      delivery: input.delivery,
+    };
+    const prompts = [
+      ...snapshot.pending.prompts,
+      input.images === undefined ? prompt : { ...prompt, images: input.images },
+    ];
+    snapshot = {
+      ...snapshot,
+      activity:
+        scenario === "failed-turn-retry" || scenario === "admission-retry"
+          ? queuedActivity(commandId)
+          : snapshot.activity,
+      pending: { total: prompts.length, hasMore: false, prompts },
+    };
+    publish();
+    return Promise.resolve({ status: "accepted", commandId });
+  }
+
+  function replyInInbox(input: PromptCommand): Promise<Accepted> {
+    if (withdrawnRequests.has(input.requestId))
+      return Promise.reject(new Error("Request was withdrawn"));
     const reply = snapshot.messages.find(
       (message) => message.value.role === "assistant",
     );
     if (reply?.value.role !== "assistant")
       throw new Error("Stable inbox fixture needs an assistant reply");
     const workId = `preview-${input.requestId}`;
+    admittedRequests.set(input.requestId, workId);
     const sequence = snapshot.messages.length + 1;
     snapshot = {
       ...snapshot,
@@ -633,6 +873,7 @@ function previewSession(
           id: `user-${workId}`,
           sequence,
           commandId: workId,
+          requestId: input.requestId,
           value: { role: "user", content: input.text, timestamp: Date.now() },
         },
       ],
@@ -666,11 +907,52 @@ function previewSession(
     }, 650);
     return Promise.resolve({ status: "accepted", commandId: workId });
   }
+
+  function command(input: AdmissionCommand): Promise<Accepted>;
+  function command(input: CancelCommand): Promise<CancelResult>;
+  function command(input: UnrecordedCommand): Promise<undefined>;
+  function command(input: ForkCommand): Promise<ForkedSession>;
+  function command(input: SessionCommand): Promise<PreviewResult>;
+  function command(input: SessionCommand): Promise<PreviewResult> {
+    if (input.type === "cancel") {
+      if (scenario === "queued-cancel") return cancelDelayed(input);
+      if (modelsQueue) return recallQueued(input);
+    }
+    if (input.type === "prompt") {
+      if (modelsQueue) return admitQueued(input);
+      if (scenario === "stable-inbox") return replyInInbox(input);
+    }
+    return previewCommand(input);
+  }
   return {
     address: `grove-preview:${sessionId}`,
+    latestPending: () =>
+      Promise.resolve(snapshot.pending.prompts.at(-1) ?? null),
     command,
+    withdraw: (requestId) => {
+      const commandId = admittedRequests.get(requestId);
+      if (commandId !== undefined)
+        return Promise.resolve({ status: "accepted", commandId });
+      withdrawnRequests.add(requestId);
+      return Promise.resolve({ status: "unknown" });
+    },
     extension: (id) => ({
-      call: id === gardenExtensionId ? gardenCall : unsupported,
+      call:
+        id === gardenExtensionId
+          ? async (command, input) => {
+              const attempt = ++gardenCalls;
+              if (scenario === "command-retry" && attempt >= 2) {
+                // Both attempts stay in flight long enough to inspect the
+                // ordinary running row, not just the failure or final result.
+                await new Promise<void>((resolve) => {
+                  setTimeout(resolve, 1250);
+                });
+                if (attempt === 2)
+                  throw new Error("The watering service is unavailable.");
+              }
+              return gardenCall(command, input);
+            }
+          : unsupported,
     }),
     send: unsupported,
     cancel: unsupported,
@@ -710,6 +992,7 @@ export function createGroveFixture(
       : scenario === "conversation-empty" ||
           scenario === "conversation-answered-inbox-lag" ||
           scenario === "conversation-failed" ||
+          scenario === "failed-turn-retry" ||
           scenario === "conversation-interrupted" ||
           scenario === "conversation-cancelled"
         ? "idle"
@@ -942,6 +1225,7 @@ export function createGroveFixture(
       const errored =
         (scenario === "row-states" && agentId === "librarian" && index === 0) ||
         scenario === "conversation-failed" ||
+        scenario === "failed-turn-retry" ||
         scenario === "conversation-interrupted";
       return {
         ...base,
@@ -1088,7 +1372,10 @@ export function createGroveFixture(
           return Promise.resolve(true);
         },
         createSession: () => {
-          if (scenario === "start-failed" && !failedStart) {
+          if (
+            (scenario === "start-failed" || scenario === "start-failed-open") &&
+            !failedStart
+          ) {
             failedStart = true;
             return Promise.reject(new Error("Session creation request failed"));
           }

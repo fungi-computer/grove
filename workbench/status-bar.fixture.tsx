@@ -7,13 +7,21 @@ import { AppStatusBar } from "@fungi.computer/caps/blocks/app-status-bar";
 import { KeycapButton } from "@fungi.computer/caps/components/keycap";
 import { CountBadge } from "@fungi.computer/caps/components/count-badge";
 import { useState } from "react";
+import { toast, Toaster } from "@fungi.computer/caps/components/toaster";
 
 /** The workbench host draws Grove's declared footer keys outside the App. */
 export function useWorkbenchStatusBar() {
   const [items, setItems] = useState<readonly AppStatusItem[]>([]);
   const [channel] = useState(() => {
     let handler: AppStatusActionHandler | undefined;
-    const status: Pick<AppRoot["ui"], "reportStatus" | "onStatusAction"> = {
+    const status: Pick<
+      AppRoot["ui"],
+      "reportStatus" | "onStatusAction" | "showToast"
+    > = {
+      showToast: ({ message, tone = "info" }) => {
+        toast[tone](message, { toasterId: "grove-workbench" });
+        return Promise.resolve();
+      },
       reportStatus: (next) => {
         setItems(next);
         return Promise.resolve();
@@ -54,5 +62,13 @@ export function useWorkbenchStatusBar() {
         })}
       </AppStatusBar>
     );
-  return { status: channel.status, bar };
+  return {
+    status: channel.status,
+    bar: (
+      <>
+        <Toaster id="grove-workbench" closeButton />
+        {bar}
+      </>
+    ),
+  };
 }

@@ -72,12 +72,21 @@ Agents and scripts call Grove through Oyster's MCP endpoint, or at
 `POST $OYSTER_URL/apps/grove/methods/<name>` with a key; see
 [Git, keys and MCP](https://github.com/fungi-computer/oyster#git-keys-and-mcp).
 
-| Method                     | What it does                                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `listInbox`                | Reads a page of your inbox.                                                                                   |
-| `listSessions({agentId})`  | Lists one agent's conversations.                                                                              |
-| `openInboxItem`            | Marks a conversation as seen and returns it.                                                                  |
-| `sendMessage({..., text})` | Sends a follow-up into an existing conversation without interrupting it, up to ten a minute per conversation. |
+| Method                                | What it does                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `listInbox`                           | Reads a page of your inbox.                                                                                   |
+| `listSessions({agentId})`             | Lists one agent's conversations.                                                                              |
+| `openInboxItem`                       | Marks a conversation as seen and returns it.                                                                  |
+| `sendMessage({..., requestId, text})` | Sends a follow-up into an existing conversation without interrupting it, up to ten a minute per conversation. |
+
+`sendMessage` requires a non-empty `requestId` of at most 256 UTF-8 bytes. Mint
+it once per user intent and retain it with the unchanged message. Reuse that
+same input when retrying an UNKNOWN outcome (for example, a lost response); do
+not mint a fresh ID inside the retry. A new user intent needs a new ID.
+
+This is a breaking API change: callers that omitted `requestId` must supply it.
+Grove forwards it unchanged through `AGENTS.send`; neither the bridge nor the
+standalone host generates a replacement.
 
 Grove also puts its inbox on the Tourtois desktop, so you see what needs you
 without opening the App.
@@ -97,9 +106,9 @@ pnpm test
 
 [src/inbox.tsx](src/inbox.tsx) owns the agent list, the inbox and the open
 conversation. [src/inbox-list.tsx](src/inbox-list.tsx) draws the inbox, and
-[src/conversation-opening.ts](src/conversation-opening.ts) switches
-conversations without losing your draft when a read fails. The agent tools are
-in [backend/methods.ts](backend/methods.ts), and [package.json](package.json)
+Parakeet's conversation-opening module switches conversations without losing
+your draft when a read fails. The agent tools are in
+[backend/methods.ts](backend/methods.ts), and [package.json](package.json)
 declares the permissions the App asks for.
 
 ## License

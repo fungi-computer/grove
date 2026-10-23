@@ -85,7 +85,7 @@ import {
   type InboxClient,
   type OpenConversation,
   type PendingSelection,
-} from "./conversation-opening.js";
+} from "@fungi.computer/parakeet/conversation-opening";
 
 const ParakeetConversation = lazy(async () => {
   const module = await import("./parakeet-conversation.js");
@@ -203,6 +203,7 @@ function Conversation({
         >
           <ParakeetConversation
             session={session}
+            draftIdentity={{ agentId: open.agentId, sessionId: open.sessionId }}
             connection={connection}
             commands={commands}
             prefill={composeDraft}
@@ -929,6 +930,7 @@ function ConnectedInbox({
         }
         tone="error"
         title="Couldn't start the conversation."
+        description={startMutation.error?.message}
         action={
           <Button
             variant="outline"
