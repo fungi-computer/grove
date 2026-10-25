@@ -1,5 +1,17 @@
 # @fungi.computer/grove
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/knapsack@0.2.1
+  - @fungi.computer/shiitake-extensions@0.1.1
+  - @fungi.computer/shiitake@0.3.1
+  - @fungi.computer/parakeet@0.2.1
+
 ## 0.2.0
 
 ### Minor Changes
