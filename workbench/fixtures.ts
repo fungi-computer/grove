@@ -926,6 +926,7 @@ function previewSession(
   }
   return {
     address: `grove-preview:${sessionId}`,
+    readSettlement: unsupported,
     latestPending: () =>
       Promise.resolve(snapshot.pending.prompts.at(-1) ?? null),
     command,

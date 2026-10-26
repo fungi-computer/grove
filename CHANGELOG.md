@@ -1,5 +1,27 @@
 # @fungi.computer/grove
 
+## 0.2.2
+
+### Patch Changes
+
+- Changes since 0.2.1:
+
+  - fix(shiitake): await exact command settlement without session watches
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/approvals@0.1.0
+  - @fungi.computer/caps@0.3.0
+  - @fungi.computer/knapsack@0.3.0
+  - @fungi.computer/parakeet@0.3.0
+  - @fungi.computer/shiitake-extensions@0.2.0
+  - @fungi.computer/shiitake@0.4.0
+  - @fungi.computer/agar@0.3.1
+
 ## 0.2.1
 
 ### Patch Changes
