@@ -1,5 +1,37 @@
 # @fungi.computer/grove
 
+## 0.3.0
+
+### Minor Changes
+
+- Changes since 0.2.2:
+
+  - fix(goal): let an Agent settle and resume its own paused goal
+  - fix(parakeet): redact and clarify turn failure notices
+  - fix(grove): show interrupted model reason with retry
+  - fix(approval): keep denial input event callbacks explicit
+  - feat(approval): carry bounded denial feedback and optional rule coverage
+  - feat(approval): make one-time approval the safe default
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.4.0
+  - @fungi.computer/approvals@0.2.0
+  - @fungi.computer/caps@0.3.1
+  - @fungi.computer/knapsack@0.3.1
+  - @fungi.computer/parakeet@0.4.0
+  - @fungi.computer/shiitake-extensions@0.3.0
+  - @fungi.computer/shiitake@0.5.0
+  - @fungi.computer/whistle@0.2.0
+
 ## 0.2.2
 
 ### Patch Changes

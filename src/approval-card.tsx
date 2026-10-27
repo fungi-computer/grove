@@ -1,4 +1,3 @@
-import { Badge } from "@fungi.computer/caps/components/badge";
 import { Button } from "@fungi.computer/caps/components/button";
 import {
   Card,
@@ -10,7 +9,12 @@ import {
 import { useEffect, useRef, useState } from "react";
 import type { CapabilityDirectory } from "@fungi.computer/agar";
 import { approvals } from "@fungi.computer/agar/approvals";
-import type { ApprovalView, AutoApproveInput } from "@fungi.computer/approvals";
+import {
+  MAX_APPROVAL_DENIAL_NOTE_LENGTH,
+  type ApprovalAnswerInput,
+  type ApprovalView,
+  type AutoApproveInput,
+} from "@fungi.computer/approvals";
 
 export type ApprovalCardProps = Readonly<{
   view: ApprovalView;
@@ -21,14 +25,14 @@ export type ApprovalCardProps = Readonly<{
 }>;
 
 const stateLabels = {
-  requested: "Approval requested",
-  pending: "Pending approval",
+  requested: "Approval requested.",
+  pending: "Pending approval.",
   approved: "Approved. Waiting to run.",
-  applied: "Applied",
-  denied: "Denied",
-  expired: "Expired",
-  claimed: "Dispatch in progress",
-  outcome_unknown: "Outcome unknown. Reconcile before trying again.",
+  applied: "Done.",
+  denied: "Denied.",
+  expired: "Expired. Nothing ran.",
+  claimed: "Dispatch in progress.",
+  outcome_unknown: "Outcome unknown. Check before trying again.",
 } satisfies Record<ApprovalView["record"]["state"], string>;
 
 export function ApprovalCard(props: ApprovalCardProps) {
@@ -66,6 +70,8 @@ function ApprovalCardFrame({
   const [answerBlocked, setAnswerBlocked] = useState(false);
   const [policyBlocked, setPolicyBlocked] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  const [explaining, setExplaining] = useState(false);
+  const [denialNote, setDenialNote] = useState("");
   const canAnswer =
     view.canAnswer &&
     record.state === "pending" &&
@@ -88,14 +94,17 @@ function ApprovalCardFrame({
     }
   }
 
-  function answer(decision: "approve" | "deny") {
+  function answer(decision: "approve" | "deny", note?: string) {
     if (!canAnswer) return;
     return submit(async () => {
-      const result = await capabilities.require(approvals).answer({
+      const input = {
         recordId: record.recordId,
         decision,
         expectedRevision: record.revision,
-      });
+      } satisfies ApprovalAnswerInput;
+      const result = await capabilities
+        .require(approvals)
+        .answer(note === undefined ? input : { ...input, denialNote: note });
       setAnswerBlocked(true);
       if (result.kind === "answered" && active.current) {
         onViewChange(result.view);
@@ -175,39 +184,102 @@ function ApprovalCardFrame({
       density="compact"
     >
       <CardHeader>
-        <CardTitle>{record.operation}</CardTitle>
-        <p>Requester: {record.requester.displayName}</p>
+        <CardTitle>
+          {canAnswer ? "Allow " : ""}
+          {record.module} · {record.operation}
+          {canAnswer ? "?" : ""}
+        </CardTitle>
+        <p>{record.requester.displayName} wants to use a connected tool.</p>
       </CardHeader>
       <CardContent className="min-w-0 space-y-2">
         <p>
-          Authority: {record.module} · {record.access}
+          Effect{" "}
+          {record.access === "write"
+            ? "Changes data in Fungi"
+            : "Changes things outside Fungi"}
+          {record.reversibility === "irreversible-external"
+            ? " · can't be undone"
+            : ""}
         </p>
-        <p>Can answer: {view.canAnswer ? "Yes" : "No"}</p>
-        <p>Can set auto-approve: {view.canSetAutoApprove ? "Yes" : "No"}</p>
-        <Badge>
-          {record.reversibility === "reversible"
-            ? "Reversible"
-            : "Cannot be undone"}
-        </Badge>
-        {record.by?.kind === "policy" ? (
-          <Badge>Auto-approved by policy</Badge>
+        {canAnswer ? null : <p role="status">{stateLabels[record.state]}</p>}
+        {explaining && canAnswer ? (
+          <div className="space-y-2">
+            <label htmlFor={`denial-note-${record.recordId}`}>Why deny?</label>
+            <input
+              id={`denial-note-${record.recordId}`}
+              aria-label="Why deny?"
+              type="text"
+              maxLength={MAX_APPROVAL_DENIAL_NOTE_LENGTH}
+              value={denialNote}
+              onChange={(event) => {
+                setDenialNote(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setExplaining(false);
+                  setDenialNote("");
+                } else if (event.key === "Enter") {
+                  event.preventDefault();
+                  void answer("deny", denialNote.trim() || undefined);
+                }
+              }}
+            />
+            <Button
+              disabled={pending}
+              onClick={() =>
+                void answer("deny", denialNote.trim() || undefined)
+              }
+            >
+              Send denial
+            </Button>
+          </div>
         ) : null}
-        <p>{record.description.title}</p>
-        <p className="break-all">
-          {record.description.inputBytes} bytes · SHA-256{" "}
-          {record.description.inputSha256}
-        </p>
-        <p role="status">{stateLabels[record.state]}</p>
-        {view.canSetAutoApprove ? (
+        <details>
+          <summary>Details</summary>
+          <p>Requester: {record.requester.principalId}</p>
           <p>
-            Policy scope:{" "}
-            {scope.agentId === null ? "whole home" : `agent ${scope.agentId}`}
+            Agent: {record.requester.displayName} ·{" "}
+            {record.requester.agentId ?? "none"}
           </p>
-        ) : null}
+          <p>Session: {record.requester.sessionId ?? "none"}</p>
+          <p>
+            Request: {record.module}.{record.operation} · {record.access}
+          </p>
+          <p>
+            Undo:{" "}
+            {record.reversibility === "irreversible-external"
+              ? "Can't be undone"
+              : "Can be undone"}
+          </p>
+          <p>Can answer: {view.canAnswer ? "Yes" : "No"}</p>
+          <p>Can set auto-approve: {view.canSetAutoApprove ? "Yes" : "No"}</p>
+          {record.by?.kind === "policy" ? <p>Auto-approved by policy</p> : null}
+          <p>{record.description.title}</p>
+          <p className="break-all">
+            Input: {record.description.inputBytes} bytes · SHA-256{" "}
+            {record.description.inputSha256}
+          </p>
+          <p>
+            Record: {record.recordId} · revision {record.revision}
+          </p>
+          {view.canSetAutoApprove ? (
+            <p>
+              Policy scope:{" "}
+              {scope.agentId === null ? "whole home" : `agent ${scope.agentId}`}
+            </p>
+          ) : null}
+        </details>
         {notice === undefined ? null : <p role="status">{notice}</p>}
         {error === undefined ? null : <p role="alert">{error}</p>}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
+        <Button
+          disabled={pending || !canAnswer}
+          onClick={() => void answer("approve")}
+        >
+          Approve once
+        </Button>
         <Button
           variant="outline"
           disabled={pending || !canAnswer}
@@ -216,10 +288,14 @@ function ApprovalCardFrame({
           Deny
         </Button>
         <Button
+          variant="outline"
           disabled={pending || !canAnswer}
-          onClick={() => void answer("approve")}
+          onClick={() => {
+            setDenialNote("");
+            setExplaining(true);
+          }}
         >
-          Approve
+          Deny and say why…
         </Button>
         {view.canSetAutoApprove ? (
           <Button
