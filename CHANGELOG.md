@@ -1,5 +1,50 @@
 # @fungi.computer/grove
 
+## 0.4.0
+
+### Minor Changes
+
+- Changes since 0.3.0:
+
+  - fix(parakeet): polish the composer questions on the web and the terminal
+  - fix(grove): find Prints panels inside an Agent's own result shape
+  - fix(grove): show one Open in Prints card per panel of a multi-panel run
+  - refactor(whistle)!: execute commands by their typed key; only Whistle mints
+    ids
+  - feat(composer): one Caps composer surface for chat and Prints
+  - fix(grove): name no private type in the owners' public shape
+  - fix(composer): public surfaces for the approval owners and the terminal's
+    home folder
+  - fix(grove): keep ApprovalEntry private to its owner module
+  - fix(prints): share Grove's completion menu so arrow keys work
+  - fix(parakeet): confirm the family rule and keep approvals steady across
+    resizes
+  - feat(parakeet): answer tool approvals in the composer on the terminal and
+    the web
+  - feat(shiitake): route a child's waiting items to the Agent that sent the
+    work
+  - feat(parakeet): answer questions in the composer on the terminal and the web
+  - feat(parakeet): let a host claim a tool result's images
+  - fix(grove): give Open in Prints the Caps outline button under its panel
+  - feat(grove): show a Prints panel in chat with Open in Prints
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.5.0
+  - @fungi.computer/caps@0.4.0
+  - @fungi.computer/knapsack@0.4.0
+  - @fungi.computer/parakeet@0.5.0
+  - @fungi.computer/shiitake-extensions@0.4.0
+  - @fungi.computer/shiitake@0.6.0
+  - @fungi.computer/whistle@0.3.0
+
 ## 0.3.0
 
 ### Minor Changes

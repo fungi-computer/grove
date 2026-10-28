@@ -203,6 +203,21 @@ export const SimpleTimeline = () => (
   />
 );
 
+/** A Prints panel in chat: the picture inline and Open in Prints below it. */
+export const PrintsPanel = () => (
+  <Workbench
+    scenario="prints-panel"
+    openRequest={{
+      kind: "navigate",
+      requestId: "grove-prints-panel",
+      params: [
+        { key: "agent", value: "gardener" },
+        { key: "session", value: "gardener-1" },
+      ],
+    }}
+  />
+);
+
 /** One of each owner state in the list; the rest seen. */
 export const OwnerStates = () => <Workbench scenario="owner-states" />;
 /** The same states beside an open conversation. */

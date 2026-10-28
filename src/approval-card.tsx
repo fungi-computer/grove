@@ -6,22 +6,21 @@ import {
   CardContent,
   CardFooter,
 } from "@fungi.computer/caps/components/card";
-import { useEffect, useRef, useState } from "react";
-import type { CapabilityDirectory } from "@fungi.computer/agar";
-import { approvals } from "@fungi.computer/agar/approvals";
+import type { ApprovalView, AutoApproveInput } from "@fungi.computer/approvals";
+import { useParakeetInteractions } from "@fungi.computer/parakeet/headless";
 import {
-  MAX_APPROVAL_DENIAL_NOTE_LENGTH,
-  type ApprovalAnswerInput,
-  type ApprovalView,
-  type AutoApproveInput,
-} from "@fungi.computer/approvals";
+  useApprovalOwners,
+  type ApprovalOwnersApi,
+} from "./approval-owners.js";
 
 export type ApprovalCardProps = Readonly<{
   view: ApprovalView;
   /** Explicit caller-selected policy scope; never inferred or broadened. */
   scope: AutoApproveInput["scope"];
-  capabilities: CapabilityDirectory;
-  onViewChange: (view: ApprovalView) => void;
+  /** Read the record again from its owner. */
+  onRefresh: () => void;
+  /** Bring the question back to the composer after Later. */
+  onAnswer: () => void;
 }>;
 
 const stateLabels = {
@@ -35,159 +34,25 @@ const stateLabels = {
   outcome_unknown: "Outcome unknown. Check before trying again.",
 } satisfies Record<ApprovalView["record"]["state"], string>;
 
-export function ApprovalCard(props: ApprovalCardProps) {
-  const { view, scope } = props;
-  // Submission feedback belongs to this owner snapshot and explicit policy scope,
-  // never the next record, revision or newly recomputed rights.
-  const frame = JSON.stringify([
-    view.record.recordId,
-    view.record.revision,
-    view.canAnswer,
-    view.canSetAutoApprove,
-    scope.agentId,
-  ]);
-  return <ApprovalCardFrame key={frame} {...props} />;
-}
-
-function ApprovalCardFrame({
+/**
+ * What the tool row says about an approval: its state, and its facts under
+ * Details. The question itself is asked in the composer.
+ */
+export function ApprovalCard({
   view,
   scope,
-  capabilities,
-  onViewChange,
+  onRefresh,
+  onAnswer,
 }: ApprovalCardProps) {
   const { record } = view;
-  const active = useRef(true);
-  useEffect(() => {
-    active.current = true;
-    return () => {
-      active.current = false;
-    };
-  }, []);
-  const inFlight = useRef(false);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
-  const [answerBlocked, setAnswerBlocked] = useState(false);
-  const [policyBlocked, setPolicyBlocked] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
-  const [explaining, setExplaining] = useState(false);
-  const [denialNote, setDenialNote] = useState("");
-  const canAnswer =
-    view.canAnswer &&
-    record.state === "pending" &&
-    !answerBlocked &&
-    !unavailable;
-
-  async function submit(action: () => Promise<void>, failureMessage: string) {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setPending(true);
-    setError(undefined);
-    setNotice(undefined);
-    try {
-      await action();
-    } catch {
-      setError(failureMessage);
-    } finally {
-      inFlight.current = false;
-      setPending(false);
-    }
-  }
-
-  function answer(decision: "approve" | "deny", note?: string) {
-    if (!canAnswer) return;
-    return submit(async () => {
-      const input = {
-        recordId: record.recordId,
-        decision,
-        expectedRevision: record.revision,
-      } satisfies ApprovalAnswerInput;
-      const result = await capabilities
-        .require(approvals)
-        .answer(note === undefined ? input : { ...input, denialNote: note });
-      setAnswerBlocked(true);
-      if (result.kind === "answered" && active.current) {
-        onViewChange(result.view);
-      } else if (result.kind === "refused") {
-        setError(
-          "Decision refused. Refresh this approval before answering again.",
-        );
-      }
-    }, "Couldn't submit the decision. Try again.");
-  }
-
-  function enableFamily() {
-    if (!view.canSetAutoApprove || policyBlocked || unavailable) return;
-    return submit(async () => {
-      const result = await capabilities.require(approvals).setAutoApprove({
-        scope,
-        family: { module: record.module, access: record.access },
-        enabled: true,
-      });
-      setPolicyBlocked(true);
-      if (result.kind === "updated") {
-        setNotice("Automatic approval enabled for this family.");
-      } else {
-        setError(
-          "Policy change refused. Refresh this approval before trying again.",
-        );
-      }
-    }, "Couldn't change approval policy. Try again.");
-  }
-
-  function refresh() {
-    return submit(async () => {
-      const client = capabilities.require(approvals);
-      // One bounded pending page, never a feed or a pagination sweep. A settled
-      // record or one beyond this page still gets an exact owner lookup.
-      const page = await client.list({ state: "pending", limit: 100 });
-      const next =
-        page.items.find((item) => item.record.recordId === record.recordId) ??
-        (await client.get({ recordId: record.recordId }));
-      if (!active.current) return;
-      setUnavailable(next === null);
-      if (next !== null) {
-        setAnswerBlocked(false);
-        setPolicyBlocked(false);
-        onViewChange(next);
-      }
-    }, "Couldn't refresh this approval. Try again.");
-  }
-
-  const refreshButton = (
-    <Button variant="ghost" disabled={pending} onClick={() => void refresh()}>
-      Refresh approval
-    </Button>
-  );
-  if (unavailable) {
-    return (
-      <Card
-        role="group"
-        aria-label="Approval request"
-        aria-busy={pending}
-        density="compact"
-      >
-        <CardContent>
-          <p role="status">Approval unavailable.</p>
-          {error === undefined ? null : <p role="alert">{error}</p>}
-        </CardContent>
-        <CardFooter>{refreshButton}</CardFooter>
-      </Card>
-    );
-  }
-
+  const asking = view.canAnswer && record.state === "pending";
   return (
-    <Card
-      role="group"
-      aria-label="Approval request"
-      aria-busy={pending}
-      density="compact"
-    >
+    <Card role="group" aria-label="Approval request" density="compact">
       <CardHeader>
         <CardTitle>
-          {canAnswer ? "Allow " : ""}
+          {asking ? "Allow " : ""}
           {record.module} · {record.operation}
-          {canAnswer ? "?" : ""}
+          {asking ? "?" : ""}
         </CardTitle>
         <p>{record.requester.displayName} wants to use a connected tool.</p>
       </CardHeader>
@@ -201,40 +66,9 @@ function ApprovalCardFrame({
             ? " · can't be undone"
             : ""}
         </p>
-        {canAnswer ? null : <p role="status">{stateLabels[record.state]}</p>}
-        {explaining && canAnswer ? (
-          <div className="space-y-2">
-            <label htmlFor={`denial-note-${record.recordId}`}>Why deny?</label>
-            <input
-              id={`denial-note-${record.recordId}`}
-              aria-label="Why deny?"
-              type="text"
-              maxLength={MAX_APPROVAL_DENIAL_NOTE_LENGTH}
-              value={denialNote}
-              onChange={(event) => {
-                setDenialNote(event.target.value);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  setExplaining(false);
-                  setDenialNote("");
-                } else if (event.key === "Enter") {
-                  event.preventDefault();
-                  void answer("deny", denialNote.trim() || undefined);
-                }
-              }}
-            />
-            <Button
-              disabled={pending}
-              onClick={() =>
-                void answer("deny", denialNote.trim() || undefined)
-              }
-            >
-              Send denial
-            </Button>
-          </div>
-        ) : null}
+        <p role="status">
+          {asking ? "Waiting for your answer." : stateLabels[record.state]}
+        </p>
         <details>
           <summary>Details</summary>
           <p>Requester: {record.requester.principalId}</p>
@@ -270,44 +104,52 @@ function ApprovalCardFrame({
             </p>
           ) : null}
         </details>
-        {notice === undefined ? null : <p role="status">{notice}</p>}
-        {error === undefined ? null : <p role="alert">{error}</p>}
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
-        <Button
-          disabled={pending || !canAnswer}
-          onClick={() => void answer("approve")}
-        >
-          Approve once
-        </Button>
-        <Button
-          variant="outline"
-          disabled={pending || !canAnswer}
-          onClick={() => void answer("deny")}
-        >
-          Deny
-        </Button>
-        <Button
-          variant="outline"
-          disabled={pending || !canAnswer}
-          onClick={() => {
-            setDenialNote("");
-            setExplaining(true);
-          }}
-        >
-          Deny and say why…
-        </Button>
-        {view.canSetAutoApprove ? (
-          <Button
-            variant="ghost"
-            disabled={pending || policyBlocked}
-            onClick={() => void enableFamily()}
-          >
-            Always approve this family
+        {asking ? (
+          <Button variant="outline" onClick={onAnswer}>
+            Answer
           </Button>
         ) : null}
-        {refreshButton}
+        <Button variant="ghost" onClick={onRefresh}>
+          Refresh approval
+        </Button>
       </CardFooter>
     </Card>
+  );
+}
+
+/** The row a tool call shows for its pending approval, once its owner has read it. */
+export function ApprovalRow({ recordId }: Readonly<{ recordId: string }>) {
+  const owners: ApprovalOwnersApi | undefined = useApprovalOwners();
+  const interactions = useParakeetInteractions();
+  const entry = owners?.entry(recordId);
+  if (owners === undefined || entry === undefined) return null;
+  if (entry.failed)
+    return (
+      <div>
+        <p role="alert">Couldn't load this approval. Try again.</p>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            owners.refresh(recordId);
+          }}
+        >
+          Refresh approval
+        </Button>
+      </div>
+    );
+  if (entry.view === null || entry.view.record.state === "expired") return null;
+  return (
+    <ApprovalCard
+      view={entry.view}
+      scope={{ agentId: owners.agentId }}
+      onRefresh={() => {
+        owners.refresh(recordId);
+      }}
+      onAnswer={() => {
+        interactions.awaiting.focus();
+      }}
+    />
   );
 }

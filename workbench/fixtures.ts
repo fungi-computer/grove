@@ -6,7 +6,9 @@ import {
   type AppRoot,
   type ReadonlyStore,
 } from "@fungi.computer/agar";
+import { appsOpen } from "@fungi.computer/agar/apps";
 import type { GameSharePreview } from "../src/game-share-card.js";
+import { printsPanelPng } from "./prints-panel-image.js";
 import {
   agentAvatar,
   agentManage,
@@ -70,7 +72,7 @@ const subagentSlots = {
           agentId: "maker",
           name: "Maker",
           sessionId: "maker-0",
-          state: "waiting",
+          state: "needs_you",
           attention: "Approve files.write",
         },
         {
@@ -98,6 +100,7 @@ export type GroveScenario =
   | "queued-recall"
   | "queued-cancel"
   | "timeline"
+  | "prints-panel"
   | "websites"
   | "websites-held"
   | "websites-collision"
@@ -602,6 +605,103 @@ function previewSession(
     ];
     snapshot = { ...snapshot, messages, terminals };
   }
+  if (scenario === "prints-panel" && sessionId === "gardener-1") {
+    const settledReply = snapshot.messages.find(
+      (message) => message.value.role === "assistant",
+    )?.value;
+    if (settledReply?.role !== "assistant")
+      throw new Error("Prints panel fixture needs a settled reply");
+    const reply = {
+      ...settledReply,
+      provider: "openai",
+      model: "openai/gpt-6-luna",
+    };
+    const panel = {
+      printId: "print_bus_stop_1",
+      destination: {
+        computerId: "computer-a",
+        path: "/prints/mira-bus-stop-in-the-rain.png",
+      },
+      format: "png",
+      width: 1536,
+      height: 1024,
+      bytes: 4945,
+      costMilliunits: 210,
+      model: "gpt-image-2",
+    };
+    const messages: SessionSnapshot["messages"] = [
+      {
+        id: "panel-ask",
+        sequence: 1,
+        commandId: "command-panel-ask",
+        value: {
+          role: "user",
+          content: "@Mira at the bus stop in the rain, storybook style",
+          timestamp: Date.now(),
+        },
+      },
+      {
+        id: "panel-call",
+        sequence: 2,
+        commandId: null,
+        value: {
+          ...reply,
+          content: [
+            {
+              type: "toolCall",
+              id: "panel-execute",
+              name: "execute",
+              arguments: {
+                code: "return await env.PRINTS.generateImage({ prompt: 'Mira at the bus stop in the rain', characters: ['Mira'], style: 'storybook' })",
+              },
+            },
+          ],
+        },
+      },
+      {
+        id: "panel-result",
+        sequence: 3,
+        commandId: null,
+        value: {
+          role: "toolResult",
+          toolCallId: "panel-execute",
+          toolName: "execute",
+          content: [
+            { type: "text", text: JSON.stringify(panel) },
+            { type: "image", data: printsPanelPng, mimeType: "image/png" },
+          ],
+          isError: false,
+          timestamp: Date.now(),
+        },
+      },
+      {
+        id: "panel-reply",
+        sequence: 4,
+        commandId: null,
+        value: {
+          ...reply,
+          content: [
+            {
+              type: "text",
+              text: "Here is the panel: Mira waiting at the bus stop in the rain, in your storybook style. It is saved in Prints as print_bus_stop_1 and cost 0.21 credits.",
+            },
+          ],
+        },
+      },
+    ];
+    snapshot = {
+      ...snapshot,
+      messages,
+      terminals: [
+        {
+          commandId: "command-panel-ask",
+          outcome: "completed",
+          sequence: 5,
+          diagnostic: null,
+        },
+      ],
+    };
+  }
   if (scenario === "failed-turn-retry") {
     admittedRequests.set("failed-request", commandId);
     snapshot = {
@@ -1003,6 +1103,12 @@ export function createGroveFixture(
             ? "queued"
             : "idle";
   const capabilities = createCapabilityRegistry();
+  if (scenario === "prints-panel")
+    // The workbench has no media-role App; Open in Prints just resolves.
+    capabilities.provide(appsOpen, {
+      open: () => Promise.resolve(),
+      role: () => Promise.resolve({ displayName: "Prints" }),
+    });
   if (
     scenario === "websites" ||
     scenario === "websites-held" ||
