@@ -105,6 +105,7 @@ export type GroveScenario =
   | "websites-held"
   | "websites-collision"
   | "inbox"
+  | "long-model"
   | "safety-notice"
   | "seller-closed"
   | "thousand"
@@ -263,6 +264,9 @@ function previewSession(
   const index = Number(sessionId.slice(sessionId.lastIndexOf("-") + 1));
   const publishedGame =
     scenario === "published-game" && sessionId === "gardener-1";
+  // The ordinary reply preview carries a real catalog identity and nonzero
+  // usage; opaque "auto" placeholders cannot prove the composer's readouts.
+  const catalogReply = scenario === "inbox" && sessionId === "gardener-1";
   const prompt =
     scenario === "websites" ||
     scenario === "websites-held" ||
@@ -307,14 +311,19 @@ function previewSession(
                     value: {
                       role: "assistant",
                       api: "pi",
-                      provider:
-                        scenario === "conversation-answered-inbox-lag"
+                      provider: catalogReply
+                        ? "cloudflare-workers-ai"
+                        : scenario === "conversation-answered-inbox-lag" ||
+                            scenario === "long-model"
                           ? "openai"
                           : "camel",
-                      model:
-                        scenario === "conversation-answered-inbox-lag"
-                          ? "openai/gpt-6-luna"
-                          : "auto",
+                      model: catalogReply
+                        ? "@cf/moonshotai/kimi-k2.6"
+                        : scenario === "long-model"
+                          ? "gpt-6-luna-long-context-preview-2026-10-28"
+                          : scenario === "conversation-answered-inbox-lag"
+                            ? "openai/gpt-6-luna"
+                            : "auto",
                       content: [
                         {
                           type: "text",
@@ -330,17 +339,17 @@ function previewSession(
                       stopReason: "stop",
                       timestamp: Date.now(),
                       usage: {
-                        input: 1,
-                        output: 1,
+                        input: catalogReply ? 500 : 1,
+                        output: catalogReply ? 186 : 1,
                         cacheRead: 0,
                         cacheWrite: 0,
-                        totalTokens: 2,
+                        totalTokens: catalogReply ? 686 : 2,
                         cost: {
-                          input: 0,
-                          output: 0,
+                          input: catalogReply ? 0.00008 : 0,
+                          output: catalogReply ? 0.0001 : 0,
                           cacheRead: 0,
                           cacheWrite: 0,
-                          total: 0,
+                          total: catalogReply ? 0.00018 : 0,
                         },
                       },
                     },
@@ -814,6 +823,8 @@ function previewSession(
           revision: 1,
           text: "The current turn keeps running.",
           thinking: "",
+          textOffset: 0,
+          thinkingOffset: 0,
           textTruncated: false,
           thinkingTruncated: false,
         },

@@ -13,9 +13,8 @@ import { useState } from "react";
 import { AgentAvatarPicker } from "./agent-avatar-picker.js";
 
 /**
- * The open Agent's head in the conversation header. For an owner it is also
- * the button that changes the Agent's avatar, which every list and
- * conversation of that Agent then wears.
+ * The selected Agent's head in navigation. For an owner it also changes
+ * the avatar shown wherever that Agent appears.
  */
 export function AgentAvatarControl({
   agentId,

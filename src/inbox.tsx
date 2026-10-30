@@ -32,11 +32,16 @@ import {
 } from "@fungi.computer/agar/agents";
 import { RenameAgentControl } from "./rename-agent-control.js";
 import { AllowAppToolsControl } from "./allow-app-tools-control.js";
-import type { AgentAccessOperation, AppRoot } from "@fungi.computer/agar";
+import type {
+  AgentAccessOperation,
+  AppRoot,
+  AppStatusItem,
+} from "@fungi.computer/agar";
 import { useGroveCommands } from "./grove-commands.js";
 import { createWhistle } from "@fungi.computer/whistle";
 import type { RowV1 } from "@fungi.computer/gills";
 import { defineIdFamily } from "@fungi.computer/cairn/id";
+import { correlationKey } from "@fungi.computer/cairn";
 import type { ParakeetSession } from "@fungi.computer/parakeet";
 import {
   ShiitakeAvatar,
@@ -73,12 +78,11 @@ import {
   useGroveLayout,
 } from "./grove-layout.js";
 import { IconButton } from "@fungi.computer/caps/components/icon-button";
-import { ChevronRight, SquarePen, X } from "lucide-react";
+import { SquarePen } from "lucide-react";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { InboxList } from "./inbox-list.js";
 import { useWebsiteInbox, WebsiteConversation } from "./website-inbox.js";
-import { Sigil } from "@fungi.computer/sigils";
 import {
   createConversationOpeningOwner,
   eventSourceFor,
@@ -410,7 +414,7 @@ function ConnectedInbox({
       const agentId = param("agent");
       const sessionId = param("session");
       if (agentId === undefined || sessionId === undefined) return;
-      besideOpener?.select(agentId, sessionId, false, false);
+      besideOpener?.select(agentId, sessionId);
     },
     [besideOpener],
   );
@@ -419,23 +423,13 @@ function ConnectedInbox({
   // so a failed baseline is not retried by the router's later render.
   const initiatedSelection = useRef<PendingSelection | null>(null);
   const selectSession = useCallback(
-    (
-      agentId: string,
-      sessionId: string,
-      fromOpenRequest = false,
-      waitForBaseline = true,
-    ): void => {
+    (agentId: string, sessionId: string, fromOpenRequest = false): void => {
       if (conversationOpener === null) return;
       if (startMutation.isError) startMutation.reset();
       websites.clear();
       setWebsitesOnly(false);
       initiatedSelection.current = { agentId, sessionId };
-      conversationOpener.select(
-        agentId,
-        sessionId,
-        fromOpenRequest,
-        waitForBaseline,
-      );
+      conversationOpener.select(agentId, sessionId, fromOpenRequest);
       navigateSession(agentId, sessionId);
     },
     [
@@ -465,7 +459,7 @@ function ConnectedInbox({
   const onForked = useCallback(
     (sessionId: string): void => {
       if (!openConversation) return;
-      selectSession(openConversation.agentId, sessionId, false, false);
+      selectSession(openConversation.agentId, sessionId);
       // The forked Session is new; reload the owner snapshot so its row
       // appears without waiting for the visibility feed's own delta.
       inbox.refresh();
@@ -535,7 +529,7 @@ function ConnectedInbox({
       try {
         const sessionId = await startMutation.mutateAsync(intent);
         // The loaded member inbox owns the new row and resumes its feed.
-        selectSession(agentId, sessionId, false, false);
+        selectSession(agentId, sessionId);
         // Session creation can beat this App's visibility feed delta. Reload
         // the owner snapshot without delaying the new conversation opening.
         inbox.refresh();
@@ -594,6 +588,21 @@ function ConnectedInbox({
 
   const groveRuntime = useGroveCommands(
     {
+      setDraft: (text) => {
+        if (
+          pendingSelection !== null ||
+          !openConversation ||
+          !connection?.capabilities.has(agentSessionWrite) ||
+          !agents.some(
+            (agent) =>
+              agent.agentId === openConversation.agentId &&
+              agent.sessionOperations.includes("agent.send"),
+          )
+        )
+          return false;
+        setComposeDraft({ requestId: correlationKey(), text });
+        return true;
+      },
       newConversation: () => {
         if (openConversation) void startConversation(openConversation.agentId);
       },
@@ -755,37 +764,52 @@ function ConnectedInbox({
         : null;
     setNavOpen(true);
   };
+  const navigationStatus: readonly AppStatusItem[] = desktop
+    ? [
+        {
+          kind: "button",
+          id: "agents",
+          text: "Agents",
+          expanded: agentRailOpen,
+          title: agentRailOpen ? "Hide Agents" : "Show Agents",
+        },
+        {
+          kind: "button",
+          id: "conversations",
+          text: "Conversations",
+          expanded: listRailOpen,
+          title: listRailOpen ? "Hide conversations" : "Show conversations",
+        },
+      ]
+    : [
+        {
+          kind: "button",
+          id: "agents",
+          text: "Agents and conversations",
+          opens: "dialog",
+          expanded: navOpen,
+        },
+      ];
   useWindowStatus(
     connection,
-    desktop
-      ? [
-          {
-            kind: "button",
-            id: "agents",
-            text: "Agents",
-            expanded: agentRailOpen,
-            title: agentRailOpen ? "Hide Agents" : "Show Agents",
-          },
-          {
-            kind: "button",
-            id: "conversations",
-            text: "Conversations",
-            expanded: listRailOpen,
-            title: listRailOpen ? "Hide conversations" : "Show conversations",
-          },
-        ]
-      : [
-          {
-            kind: "button",
-            id: "agents",
-            text: "Agents and conversations",
-            opens: "dialog",
-            expanded: navOpen,
-          },
-        ],
+    [
+      ...navigationStatus,
+      ...(besideConversation === null
+        ? []
+        : [
+            {
+              kind: "button" as const,
+              id: "close-beside",
+              text: "Close beside",
+              title: "Close beside conversation",
+            },
+          ]),
+    ],
     (action) => {
       if (creation !== null) return false;
-      if (desktop && action.itemId === "agents") {
+      if (action.itemId === "close-beside" && besideConversation !== null) {
+        besideOpener?.clear();
+      } else if (desktop && action.itemId === "agents") {
         setAgentRailOpen((open) => !open);
       } else if (desktop && action.itemId === "conversations") {
         setListRailOpen((open) => !open);
@@ -811,18 +835,14 @@ function ConnectedInbox({
   const openAgent = openConversation
     ? agentById.get(openConversation.agentId)
     : undefined;
-  const besideAgent = besideConversation
-    ? agentById.get(besideConversation.agentId)
-    : undefined;
-  const canRenameAgent = connection?.capabilities.has(agentRename) ?? false;
-  const canSetAgentAvatar = connection?.capabilities.has(agentAvatar) ?? false;
-  const toolPolicy = useAgentToolPolicy(connection, openAgent?.agentId ?? null);
-  const openTitle =
-    openRow !== undefined && openRow.state !== "unavailable"
-      ? openRow.title || "Untitled conversation"
-      : "Conversation";
   const facetAgent =
     agentFilterId === null ? undefined : agentById.get(agentFilterId);
+  const canRenameAgent = connection?.capabilities.has(agentRename) ?? false;
+  const canSetAgentAvatar = connection?.capabilities.has(agentAvatar) ?? false;
+  const toolPolicy = useAgentToolPolicy(
+    connection,
+    facetAgent?.agentId ?? null,
+  );
   const listed = view.active.length + view.settled.length;
   const renameAgent = useCallback(
     async (agentId: string, name: string): Promise<boolean> => {
@@ -852,12 +872,12 @@ function ConnectedInbox({
   );
   const approveAgentTools = useCallback(() => {
     const status = toolPolicy.status.data;
-    if (!openAgent || status === undefined || status === null) return;
+    if (!facetAgent || status === undefined || status === null) return;
     toolPolicy.approve.mutate({
-      agentId: openAgent.agentId,
+      agentId: facetAgent.agentId,
       expectedRevision: status.revision,
     });
-  }, [openAgent, toolPolicy.status.data, toolPolicy.approve]);
+  }, [facetAgent, toolPolicy.status.data, toolPolicy.approve]);
 
   const openCreation = useCallback(
     (kind: "agent" | "session") => {
@@ -1023,9 +1043,8 @@ function ConnectedInbox({
             <ResizeHandle
               aria-label="Conversation list width"
               aria-controls="grove-list-rail"
-              className="absolute right-0 top-1/2 z-10 translate-x-1/2 -translate-y-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+              className="absolute right-0 top-1/2 z-10 translate-x-1/2 -translate-y-1/2"
               orientation="vertical"
-              variant="notch"
               value={listWidth}
               min={listWidthBounds.min}
               max={listWidthBounds.max}
@@ -1039,6 +1058,15 @@ function ConnectedInbox({
             />
           ) : null}
           <header className="inbox-header flex h-10 flex-none items-center gap-1 border-b border-base-300 pl-3 pr-1">
+            {facetAgent ? (
+              <AgentAvatarControl
+                key={facetAgent.agentId}
+                agentId={facetAgent.agentId}
+                name={agentLabel(facetAgent)}
+                avatar={facetAgent.avatar}
+                {...(canSetAgentAvatar ? { setAvatar: setAgentAvatar } : {})}
+              />
+            ) : null}
             <DataListHeading className="min-w-0 flex-1 truncate">
               {websitesOnly && websites.canRead
                 ? "Websites"
@@ -1046,6 +1074,14 @@ function ConnectedInbox({
                   ? agentLabel(facetAgent)
                   : "All Agents"}
             </DataListHeading>
+            {facetAgent && canRenameAgent ? (
+              <RenameAgentControl
+                key={facetAgent.agentId}
+                agentId={facetAgent.agentId}
+                name={facetAgent.name}
+                rename={renameAgent}
+              />
+            ) : null}
             {connection && (canStart || canCreateAgent) ? (
               <IconButton
                 aria-label="New conversation"
@@ -1059,6 +1095,13 @@ function ConnectedInbox({
               />
             ) : null}
           </header>
+          {facetAgent && toolPolicy.canRead ? (
+            <AllowAppToolsControl
+              status={toolPolicy.status.data}
+              approving={toolPolicy.approve.isPending}
+              onApprove={approveAgentTools}
+            />
+          ) : null}
           {agentNotice ? (
             <Alert
               tone="info"
@@ -1199,77 +1242,6 @@ function ConnectedInbox({
         className="inbox-conversation-shell flex min-h-0 min-w-0 flex-1 flex-col"
         aria-label="Conversation"
       >
-        <header className="grove-head flex h-10 flex-none items-center gap-2 border-b border-base-300 px-2 text-xs">
-          {desktop || (!websites.selected && !openAgent) ? null : (
-            <Button
-              variant="outline"
-              size="sm"
-              aria-haspopup="dialog"
-              aria-controls="grove-nav"
-              aria-expanded={navOpen}
-              onClick={openNavigationSheet}
-            >
-              Agents and conversations
-            </Button>
-          )}
-          {websites.selected ? (
-            <nav
-              aria-label="Breadcrumb"
-              className="flex min-w-0 flex-1 items-center gap-1.5"
-            >
-              <Sigil name="internet" size={14} />
-              <DataListHeading className="min-w-0 truncate">
-                {websites.selected.siteLabel}
-              </DataListHeading>
-              <ChevronRight aria-hidden="true" size={12} />
-              <span className="min-w-0 truncate">
-                {websites.selected.conversation.label || "Website visitor"}
-              </span>
-            </nav>
-          ) : openAgent ? (
-            <nav
-              aria-label="Breadcrumb"
-              className="flex min-w-0 flex-1 items-center gap-1.5"
-            >
-              <AgentAvatarControl
-                // Remount on agent switch, like the rename control below.
-                key={`avatar-${openAgent.agentId}`}
-                agentId={openAgent.agentId}
-                name={agentLabel(openAgent)}
-                avatar={openAgent.avatar}
-                {...(canSetAgentAvatar ? { setAvatar: setAgentAvatar } : {})}
-              />
-              <DataListHeading className="flex-none">
-                {agentLabel(openAgent)}
-              </DataListHeading>
-              {canRenameAgent ? (
-                <RenameAgentControl
-                  // Remount on agent switch: a stale draft must never leak
-                  // between two Agents' open/edit state.
-                  key={openAgent.agentId}
-                  agentId={openAgent.agentId}
-                  name={openAgent.name}
-                  rename={renameAgent}
-                />
-              ) : null}
-              {toolPolicy.canRead ? (
-                <AllowAppToolsControl
-                  status={toolPolicy.status.data}
-                  approving={toolPolicy.approve.isPending}
-                  onApprove={approveAgentTools}
-                />
-              ) : null}
-              <ChevronRight
-                aria-hidden="true"
-                className="flex-none text-(--stipe-fg-muted)"
-                size={12}
-              />
-              <span className="min-w-0 truncate text-(--stipe-fg-muted)">
-                {openTitle}
-              </span>
-            </nav>
-          ) : null}
-        </header>
         <TeamNotices app={connection} />
         {conversationError ? (
           <Alert
@@ -1387,22 +1359,6 @@ function ConnectedInbox({
           aria-label="Beside conversation"
           data-inbox-beside
         >
-          <header className="grove-head flex h-10 flex-none items-center gap-2 border-b border-base-300 px-2 text-xs">
-            <DataListHeading className="min-w-0 flex-1 truncate">
-              {besideAgent === undefined
-                ? besideConversation.agentId
-                : agentLabel(besideAgent)}
-            </DataListHeading>
-            <IconButton
-              aria-label="Close beside conversation"
-              icon={<X />}
-              iconSize="sm"
-              size="sm"
-              onClick={() => {
-                besideOpener?.clear();
-              }}
-            />
-          </header>
           <Conversation
             open={besideConversation}
             connection={connection}
@@ -1411,12 +1367,7 @@ function ConnectedInbox({
             composeDraft={null}
             onPrefilled={() => undefined}
             onForked={(sessionId) => {
-              besideOpener?.select(
-                besideConversation.agentId,
-                sessionId,
-                false,
-                false,
-              );
+              besideOpener?.select(besideConversation.agentId, sessionId);
             }}
             onOpen={openBeside}
             label="Beside conversation"

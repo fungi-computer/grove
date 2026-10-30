@@ -92,7 +92,7 @@ export function ParakeetConversation({
       return ui ? (
         <>
           <FileResultAction item={item} ui={ui} />
-          <ImageResultCard item={item} ui={ui} capabilities={capabilities} />
+          <ImageResultCard item={item} capabilities={capabilities} />
         </>
       ) : null;
     },

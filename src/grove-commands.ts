@@ -4,7 +4,18 @@ import {
   type WhistleCommand,
   type WhistleRuntime,
 } from "@fungi.computer/whistle";
+import { parseJsonObject } from "@fungi.computer/whistle/wire";
+import * as Schema from "effect/Schema";
 import { useEffect, useMemo, useRef } from "react";
+
+const draftSchema = Schema.Struct({ text: Schema.String });
+const draftInputSchema = parseJsonObject(
+  structuredClone(
+    Schema.toJsonSchemaDocument(draftSchema, {
+      onExcessProperty: "error",
+    }).schema,
+  ),
+);
 
 /** What Grove's own commands do in the live inbox. */
 export type GroveCommandActions = Readonly<{
@@ -12,11 +23,13 @@ export type GroveCommandActions = Readonly<{
   newConversation: () => void;
   /** Ask the host to show Grove's App permissions. */
   openPermissions: () => void;
+  /** Replace an open writable conversation's draft, without sending it. */
+  setDraft: (text: string) => boolean;
 }>;
 
 /**
- * Grove's catalog, defined once: slash commands in its composer, and the same
- * commands in the shell's `:` line while Grove is focused.
+ * Grove's catalog, defined once. Each command opts into its composer, shell
+ * palette or Agent projection.
  */
 export function groveCommands(
   actions: () => GroveCommandActions,
@@ -43,6 +56,24 @@ export function groveCommands(
       },
       handler: () => {
         actions().openPermissions();
+      },
+    },
+    {
+      id: "set-draft",
+      title: "Set draft",
+      category: "Conversation",
+      description:
+        "Replace the open writable Grove conversation's draft without sending it",
+      projections: { agent: {} },
+      action: {
+        inputSchema: draftInputSchema,
+        presentation: { type: "action" },
+      },
+      handler: ({ arguments: input }) => {
+        const { text } = Schema.decodeUnknownSync(draftSchema, {
+          onExcessProperty: "error",
+        })(input);
+        return { accepted: actions().setDraft(text) };
       },
     },
   ];

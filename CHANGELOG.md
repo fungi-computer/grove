@@ -1,5 +1,39 @@
 # @fungi.computer/grove
 
+## 0.5.0
+
+### Minor Changes
+
+- Changes since 0.4.0:
+
+  - fix(composer): align native keys, empty Send and usage readouts
+  - feat(grove): expose Agent draft edits through the live composer
+  - feat(composer): finish native row controls and responsive parity
+  - fix(oyster): report new Sessions and release cancelled RPC streams
+  - fix(caps): use one resize knob in video apps
+  - feat(parakeet): share Grove and Prints composer geometry
+  - fix(grove): remove redundant conversation headers
+  - fix(grove): keep phone controls and Inbox status aligned
+  - fix(grove): checkpoint status dots and draft regression
+  - fix(shiitake): stream bounded offset append progress across all clients
+  - fix(composer): merge current integration contracts
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.6.0
+  - @fungi.computer/caps@0.5.0
+  - @fungi.computer/parakeet@0.6.0
+  - @fungi.computer/shiitake-extensions@0.5.0
+  - @fungi.computer/shiitake@0.7.0
+  - @fungi.computer/sprite-zdog@0.3.0
+  - @fungi.computer/knapsack@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

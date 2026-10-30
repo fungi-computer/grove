@@ -1,23 +1,23 @@
 {
   "name": "@fungi.computer/grove",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit",
     "lint": "eslint src workbench test backend .ladle --max-warnings=0"
   },
   "dependencies": {
-    "@fungi.computer/agar": "0.5.0",
+    "@fungi.computer/agar": "0.6.0",
     "@fungi.computer/approvals": "0.2.0",
     "@fungi.computer/cairn": "0.1.0",
-    "@fungi.computer/caps": "0.4.0",
-    "@fungi.computer/knapsack": "0.4.0",
+    "@fungi.computer/caps": "0.5.0",
+    "@fungi.computer/knapsack": "0.4.1",
     "@fungi.computer/maosaico": "0.1.0",
-    "@fungi.computer/parakeet": "0.5.0",
-    "@fungi.computer/shiitake": "0.6.0",
+    "@fungi.computer/parakeet": "0.6.0",
+    "@fungi.computer/shiitake": "0.7.0",
     "@fungi.computer/sigils": "0.2.0",
     "@fungi.computer/sprite": "0.2.0",
-    "@fungi.computer/sprite-zdog": "0.2.0",
+    "@fungi.computer/sprite-zdog": "0.3.0",
     "@fungi.computer/stipe": "0.1.0",
     "@fungi.computer/whistle": "0.3.0",
     "@tanstack/react-query": "5.102.8",
@@ -28,13 +28,13 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "zod": "4.4.3",
-    "@fungi.computer/shiitake-extensions": "0.4.0",
+    "@fungi.computer/shiitake-extensions": "0.5.0",
     "@fungi.computer/gills": "0.2.0"
   },
   "devDependencies": {
     "@fungi.computer/watchdog": "0.1.0",
     "@cloudflare/workers-types": "5.20260828.1",
-    "@fungi.computer/parakeet-testing": "0.2.0",
+    "@fungi.computer/parakeet-testing": "0.2.1",
     "@ladle/react": "5.1.1",
     "@tailwindcss/vite": "4.2.1",
     "@types/react": "18.3.3",
@@ -128,6 +128,15 @@
               "order": 21
             },
             "palette": {}
+          }
+        },
+        {
+          "id": "set-draft",
+          "title": "Set draft",
+          "category": "Conversation",
+          "description": "Replace the open writable Grove conversation's draft without sending it",
+          "projections": {
+            "agent": {}
           }
         }
       ],

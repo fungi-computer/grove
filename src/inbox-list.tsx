@@ -392,41 +392,38 @@ function SessionRow({
   const errored = session.state === "errored";
   // Live state is a quiet bead; the label lives in the row's accessible name.
   const activity = (
-    <span className="inline-flex items-center gap-1.5">
-      {pending || inPlay || errored ? (
-        <span className="sr-only">
-          {pending ? "Opening" : inboxStatusCopy[session.state]}
-        </span>
-      ) : null}
-      {pending || inPlay ? (
-        <Status
-          size="compact"
-          title={pending ? "Opening" : inboxStatusCopy[session.state]}
-          motion={session.state === "running" || pending ? "pulse" : "none"}
-          tone={
-            pending
-              ? "neutral"
-              : session.state === "needs_you"
-                ? "accent"
-                : "info"
-          }
-        />
-      ) : errored ? (
-        <Status
-          size="compact"
-          title={inboxStatusCopy.errored}
-          glyph="bang"
-          tone="error"
-        />
-      ) : attention ? (
-        <Status
-          size="compact"
-          title="Finished since your last visit"
-          tone="neutral"
-        />
-      ) : null}
+    <span className="inbox-row-activity inline-grid shrink-0 grid-cols-[1rem_7ch] items-center gap-1.5 text-[0.6875rem]">
+      <span className="inbox-row-status flex items-center justify-center">
+        {pending || inPlay || errored ? (
+          <span className="sr-only">
+            {pending ? "Opening" : inboxStatusCopy[session.state]}
+          </span>
+        ) : null}
+        {pending || inPlay ? (
+          <Status
+            size="compact"
+            title={pending ? "Opening" : inboxStatusCopy[session.state]}
+            motion={session.state === "running" || pending ? "pulse" : "none"}
+            tone={
+              pending
+                ? "neutral"
+                : session.state === "needs_you"
+                  ? "accent"
+                  : "info"
+            }
+          />
+        ) : errored ? (
+          <Status size="compact" title={inboxStatusCopy.errored} tone="error" />
+        ) : attention ? (
+          <Status
+            size="compact"
+            title="Finished since your last visit"
+            tone="neutral"
+          />
+        ) : null}
+      </span>
       <time
-        className="inbox-row-age min-w-[3ch] text-right text-[0.6875rem] tabular-nums text-(--stipe-fg-muted)"
+        className="inbox-row-age min-w-0 truncate text-right tabular-nums text-(--stipe-fg-muted)"
         dateTime={new Date(session.lastActivityAt).toISOString()}
       >
         {formatAge(session.lastActivityAt)}
@@ -440,7 +437,7 @@ function SessionRow({
         aria-label={`${session.title || "Untitled session"} — ${agentLabel(agent)}${attention ? " — Finished since your last visit" : ""}${session.ready ? " — Ready" : inPlay || errored ? ` — ${inboxStatusCopy[session.state]}` : ""}`}
         aria-busy={pending || undefined}
         appearance="plain"
-        className={`inbox-row${onDelete ? " pr-9" : ""}${selected ? " is-selected bg-base-300" : ""}`}
+        className={`inbox-row pr-9${selected ? " is-selected bg-base-300" : ""}`}
         data-attention={attention ? "true" : "false"}
         data-pending={pending ? "true" : "false"}
         data-session-id={session.sessionId}
@@ -478,7 +475,7 @@ function UnavailableSessionRow({
 }): React.JSX.Element {
   return (
     <div
-      className="inbox-row is-unavailable flex min-h-11 w-full items-center gap-2 rounded-field border-0 px-2 py-1 text-left text-base-content"
+      className="inbox-row is-unavailable flex min-h-11 w-full items-center gap-2 rounded-field border-(length:--border) border-transparent px-2 py-1 pr-9 text-left text-base-content"
       data-session-id={row.sessionId}
       data-testid="inbox-unavailable-row"
       role="group"
@@ -492,13 +489,15 @@ function UnavailableSessionRow({
           conversation could not be read.
         </small>
       </span>
-      <Status
-        className="inbox-row-status"
-
-        glyph="bang"
-        tone="error"
-        title="This saved conversation could not be read"
-      />
+      <span className="inbox-row-activity inline-grid shrink-0 grid-cols-[1rem_7ch] items-center gap-1.5 text-[0.6875rem]">
+        <span className="inbox-row-status flex items-center justify-center">
+          <Status
+            size="compact"
+            tone="error"
+            title="This saved conversation could not be read"
+          />
+        </span>
+      </span>
     </div>
   );
 }

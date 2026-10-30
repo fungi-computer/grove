@@ -79,6 +79,8 @@ function Workbench({
 }
 
 export const Inbox = () => <Workbench />;
+/** A read-only model label must yield to the phone composer's Send key. */
+export const LongModel = () => <Workbench scenario="long-model" />;
 export const CommandRetry = () => <Workbench scenario="command-retry" />;
 /** An open conversation streams while a foreign Session gains attention. */
 export const StableInbox = () => (

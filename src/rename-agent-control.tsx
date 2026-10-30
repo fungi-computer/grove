@@ -18,7 +18,7 @@ const nameSchema = Schema.Trim.check(
 );
 
 /**
- * Inline owner-only rename control for the open Agent's header. Collapsed, it
+ * Inline owner-only rename control for the selected Agent in navigation. Collapsed, it
  * is one small pencil button; open, it is a one-field form that saves or
  * cancels back to the plain name.
  */
