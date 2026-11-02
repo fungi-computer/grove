@@ -1401,6 +1401,16 @@ export function createGroveFixture(
   if (scenario !== "no-agent-access")
     capabilities.provide(agentManage, {
       open: unsupported,
+      // Two Team Computers, so New Agent shows the picker on the newest.
+      computers: () =>
+        Promise.resolve([
+          { computerId: "computer_studio", name: "Studio", createdAt: 1 },
+          {
+            computerId: "computer_travel",
+            name: "Travel laptop",
+            createdAt: 2,
+          },
+        ]),
       create: ({ name, avatar }) => {
         const agent = {
           agentId: `created-${String(createdAgents.length + 1)}`,

@@ -5,7 +5,6 @@ import { CardTitle } from "@fungi.computer/caps/components/card";
 import { AgentRail } from "./agent-rail.js";
 import { TeamNotices } from "./team-notices.js";
 import { NavigationRails, useNavigationDesktop } from "./navigation-rails.js";
-import { computerList } from "@fungi.computer/agar/computer";
 import { CreateAgentDialog } from "./create-agent-dialog.js";
 import { CreateSessionDialog } from "./create-session-dialog.js";
 import { RouterProvider } from "@tanstack/react-router";
@@ -260,6 +259,7 @@ function ConnectedInbox({
   const {
     directory,
     inbox,
+    computerChoices,
     createAgent: createAgentMutation,
     renameAgent: renameAgentMutation,
     setAgentAvatar: setAgentAvatarMutation,
@@ -974,7 +974,19 @@ function ConnectedInbox({
             open={creation === "agent"}
             pending={creatingAgent}
             error={agentCreationError}
-            canChooseComputer={connection.capabilities.has(computerList)}
+            computers={
+              computerChoices.isError
+                ? {
+                    status: "unavailable",
+                    message:
+                      "Your Computers could not be loaded. New Computer and No Computer still work.",
+                  }
+                : computerChoices.isPending
+                  ? { status: "loading" }
+                  : computerChoices.data === null
+                    ? { status: "not-offered" }
+                    : { status: "offered", computers: computerChoices.data }
+            }
             create={createAgent}
             onClose={() => {
               setCreation(null);

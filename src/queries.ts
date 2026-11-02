@@ -2,10 +2,12 @@ import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import type { AppRoot } from "@fungi.computer/agar";
 import {
   agentList,
+  agentManage,
   agentSessionRead,
   agentSessionWrite,
   agentToolPolicy,
   createAppAgent,
+  listAppAgentComputers,
   renameAppAgent,
   setAppAgentAvatar,
   type AppAgent,
@@ -52,12 +54,27 @@ export function useInboxData(app: AppRoot | null) {
   useEffect(() => {
     if (unknownAgents !== "[]" && inbox.items.length > 0) void refetch();
   }, [unknownAgents, inbox.items, refetch]);
+  // The Team Computers New Agent offers, newest first; null when the host
+  // makes no creation-time Computer choice.
+  const computerChoicesKey = queryKeys.of(app, "agent-computers");
+  const computerChoices = useQuery({
+    ...capabilityQuery(app, agentManage, computerChoicesKey, () => {
+      if (!app) throw new Error("No App connection");
+      return listAppAgentComputers(app.capabilities);
+    }),
+    enabled: app?.capabilities.has(agentManage) === true,
+  });
   const createAgent = useMutation({
     mutationFn: (intent: AppAgentCreateInput) => {
       if (!app) throw new Error("No App connection");
       return createAppAgent(app.capabilities, intent);
     },
     onMutate: () => ({ directoryKey }),
+    onSettled: (_agent, _error, intent) => {
+      // A new Computer joins the Team's list for the next Agent.
+      if (intent.computer === "new")
+        void client.invalidateQueries({ queryKey: computerChoicesKey });
+    },
     onSuccess: (agent, _intent, context) => {
       client.setQueryData<readonly AppAgent[]>(
         context.directoryKey,
@@ -90,7 +107,14 @@ export function useInboxData(app: AppRoot | null) {
       );
     },
   });
-  return { directory, inbox, createAgent, renameAgent, setAgentAvatar };
+  return {
+    directory,
+    inbox,
+    computerChoices,
+    createAgent,
+    renameAgent,
+    setAgentAvatar,
+  };
 }
 
 /** Whether the open Agent's App-tool policy still awaits the owner's approval. */

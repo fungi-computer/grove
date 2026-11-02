@@ -1,9 +1,11 @@
 import { AgentHead } from "@fungi.computer/parakeet";
+import { FieldSet } from "@fungi.computer/caps/components/field";
 import {
-  RadioGroup,
-  RadioGroupCard,
-  RadioGroupItem,
-} from "@fungi.computer/caps/components/radio-group";
+  IconRadio,
+  SwatchRadio,
+} from "@fungi.computer/caps/components/icon-radio";
+import { RadioGroup } from "@fungi.computer/caps/components/radio-group";
+import { Sigil } from "@fungi.computer/sigils";
 import {
   avatarCharacters,
   avatarEnvelopeSchema,
@@ -11,7 +13,6 @@ import {
   type AvatarCharacter,
 } from "@fungi.computer/sprite/avatar";
 import { avatarCatalog } from "@fungi.computer/sprite-zdog/catalog";
-import { useId } from "react";
 
 const names = { mushroom: "Shiitake", cat: "Cat", burger: "Burger" };
 /** Identity colour pairs: the primary slot, then its accent. */
@@ -25,6 +26,7 @@ const swatches = [
   ["Lilac", "#9b8cf0", "#ebe6ff"],
   ["Plum", "#e58bd6", "#fbe2f6"],
 ] as const;
+type Swatch = (typeof swatches)[number];
 
 /**
  * Move an avatar to `character`, carrying its identity colours slot for slot
@@ -45,9 +47,34 @@ function asCharacter(avatar: Avatar, character: AvatarCharacter): Avatar {
   return { ...avatar, character, appearance, expression: "normal" };
 }
 
+/** Paint an avatar's identity slots with one swatch's primary and accent. */
+function withSwatch(avatar: Avatar, [, primary, accent]: Swatch): Avatar {
+  const slots = avatarCatalog[avatar.character].identitySlots;
+  return {
+    ...avatar,
+    appearance: {
+      ...avatar.appearance,
+      ...Object.fromEntries(
+        slots.map((slot, index) => [slot, index === 0 ? primary : accent]),
+      ),
+    },
+  };
+}
+
 /**
- * A small Agent avatar picker over Sprite's closed character catalog: one
- * character and one identity colour. The caller owns saving.
+ * A new Agent's first look: the seeded avatar painted with one of the
+ * picker's colours, chosen by the seed so two new Agents rarely match.
+ */
+export function swatchedAvatar(avatar: Avatar, seed: string): Avatar {
+  let sum = 0;
+  for (const character of seed) sum += character.codePointAt(0) ?? 0;
+  const swatch = swatches[sum % swatches.length] ?? swatches[0];
+  return withSwatch(avatar, swatch);
+}
+
+/**
+ * The Agent avatar rows of a form: one character key and one colour key,
+ * labelled like every other field. The caller owns saving.
  */
 export function AgentAvatarPicker({
   value,
@@ -58,7 +85,6 @@ export function AgentAvatarPicker({
   disabled?: boolean;
   onChange: (next: Avatar) => void;
 }) {
-  const id = useId();
   const slots = avatarCatalog[value.character].identitySlots;
   const selectedSwatch =
     swatches.find(([, primary, accent]) =>
@@ -68,66 +94,68 @@ export function AgentAvatarPicker({
       ),
     )?.[0] ?? "";
   return (
-    <div className="flex flex-col gap-sm">
-      <RadioGroup
-        aria-label="Character"
-        className="grid grid-cols-3 gap-sm"
+    <>
+      <FieldSet
+        legend="Avatar"
+        icon={<Sigil name="agent" />}
+        layout="columns"
         disabled={disabled}
-        orientation="horizontal"
-        value={value.character}
-        onValueChange={(raw) => {
-          onChange(
-            asCharacter(value, avatarEnvelopeSchema.shape.character.parse(raw)),
-          );
-        }}
       >
-        {avatarCharacters.map((character) => (
-          <RadioGroupCard
-            key={character}
-            id={`${id}-${character}`}
-            value={character}
-            title={names[character]}
-            description={
-              <AgentHead
-                avatar={asCharacter(value, character)}
-                name={names[character]}
-                size={40}
-              />
-            }
-          />
-        ))}
-      </RadioGroup>
-      <RadioGroup
-        aria-label="Colour"
-        className="flex flex-wrap gap-xs"
-        disabled={disabled}
-        orientation="horizontal"
-        value={selectedSwatch}
-        onValueChange={(name) => {
-          const swatch = swatches.find(([label]) => label === name);
-          if (!swatch) return;
-          onChange({
-            ...value,
-            appearance: {
-              ...value.appearance,
-              ...Object.fromEntries(
-                slots.map((slot, index) => [slot, swatch[index === 0 ? 1 : 2]]),
+        <RadioGroup
+          aria-label="Character"
+          className="caps-field-icon-choices"
+          disabled={disabled}
+          orientation="horizontal"
+          value={value.character}
+          onValueChange={(raw) => {
+            onChange(
+              asCharacter(
+                value,
+                avatarEnvelopeSchema.shape.character.parse(raw),
               ),
-            },
-          });
-        }}
+            );
+          }}
+        >
+          {avatarCharacters.map((character) => (
+            <IconRadio
+              key={character}
+              value={character}
+              label={names[character]}
+              caption={names[character]}
+              art="color"
+              icon={
+                <AgentHead
+                  avatar={asCharacter(value, character)}
+                  name={names[character]}
+                  size={32}
+                />
+              }
+            />
+          ))}
+        </RadioGroup>
+      </FieldSet>
+      <FieldSet
+        legend="Colour"
+        icon={<Sigil name="prints" />}
+        layout="columns"
+        disabled={disabled}
       >
-        {swatches.map(([name, colour]) => (
-          <label
-            key={name}
-            title={name}
-            className="grid size-9 cursor-pointer place-items-center rounded-full border border-base-300"
-            style={{ backgroundColor: colour }}
-          >
-            <RadioGroupItem value={name} aria-label={name} />
-          </label>
-        ))}
-      </RadioGroup>
-    </div>
+        <RadioGroup
+          aria-label="Colour"
+          className="caps-field-icon-choices"
+          disabled={disabled}
+          orientation="horizontal"
+          value={selectedSwatch}
+          onValueChange={(name) => {
+            const swatch = swatches.find(([label]) => label === name);
+            if (swatch) onChange(withSwatch(value, swatch));
+          }}
+        >
+          {swatches.map(([name, colour]) => (
+            <SwatchRadio key={name} value={name} label={name} color={colour} />
+          ))}
+        </RadioGroup>
+      </FieldSet>
+    </>
   );
 }

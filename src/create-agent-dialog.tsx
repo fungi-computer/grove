@@ -1,5 +1,8 @@
 import { useRef, type RefObject } from "react";
-import type { AppAgentCreateInput } from "@fungi.computer/agar/agents";
+import type {
+  AppAgentComputerChoice,
+  AppAgentCreateInput,
+} from "@fungi.computer/agar/agents";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +16,7 @@ export function CreateAgentDialog({
   open,
   pending,
   error,
-  canChooseComputer,
+  computers,
   create,
   onClose,
   returnFocus,
@@ -21,7 +24,15 @@ export function CreateAgentDialog({
   open: boolean;
   pending: boolean;
   error: string | null;
-  canChooseComputer: boolean;
+  /**
+   * The Team's Computers for the picker: loading, offered (newest first),
+   * not offered by this host, or unreadable.
+   */
+  computers:
+    | { status: "loading" }
+    | { status: "offered"; computers: readonly AppAgentComputerChoice[] }
+    | { status: "not-offered" }
+    | { status: "unavailable"; message: string };
   create: (intent: AppAgentCreateInput) => Promise<boolean>;
   onClose: () => void;
   returnFocus: RefObject<HTMLElement>;
@@ -46,13 +57,26 @@ export function CreateAgentDialog({
             Agents chat, write and make little games with you.
           </DialogDescription>
         </DialogHeader>
-        <CreateAgentForm
-          create={create}
-          canChooseComputer={canChooseComputer}
-          inputRef={input}
-          error={error}
-          onCancel={onClose}
-        />
+        {computers.status === "loading" ? (
+          <p role="status">Loading your Computers…</p>
+        ) : (
+          <CreateAgentForm
+            create={create}
+            computers={
+              computers.status === "offered"
+                ? computers.computers
+                : computers.status === "unavailable"
+                  ? []
+                  : null
+            }
+            computersUnavailable={
+              computers.status === "unavailable" ? computers.message : null
+            }
+            inputRef={input}
+            error={error}
+            onCancel={onClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

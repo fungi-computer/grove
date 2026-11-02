@@ -1,6 +1,7 @@
-import {
-  appAgentComputerSchema,
-  type AppAgentCreateInput,
+import type {
+  AppAgentComputer,
+  AppAgentComputerChoice,
+  AppAgentCreateInput,
 } from "@fungi.computer/agar/agents";
 import { seededAvatar, type Avatar } from "@fungi.computer/sprite/avatar";
 import { useMemo, useRef, useState, type Ref } from "react";
@@ -16,20 +17,46 @@ import {
 import { FormFooter } from "@fungi.computer/caps/components/field";
 import { Button } from "@fungi.computer/caps/components/button";
 import { Input } from "@fungi.computer/caps/components/input";
-import { AgentAvatarPicker } from "./agent-avatar-picker.js";
+import { Sigil } from "@fungi.computer/sigils";
+import { AgentAvatarPicker, swatchedAvatar } from "./agent-avatar-picker.js";
 
 const nameSchema = Schema.Trim.check(
   Schema.isMinLength(1, { message: "Give your Agent a name." }),
   Schema.isMaxLength(256, { message: "Use at most 256 characters." }),
 );
 const readName = Schema.decodeUnknownOption(nameSchema);
-const computerSchema = appAgentComputerSchema.annotate(
-  field({
+/** One select value per choice: an existing Computer's id, "new" or "none". */
+const choiceValue = (choice: AppAgentComputer) =>
+  choice === "new" || choice === "none" ? choice : choice.computerId;
+const choiceOf = (value: string): AppAgentComputer =>
+  value === "new" || value === "none" ? value : { computerId: value };
+/** The Team's newest Computer, or no Computer when the Team has none. */
+const defaultChoice = (computers: readonly AppAgentComputerChoice[] | null) =>
+  computers?.[0]?.computerId ?? "none";
+
+function computerField(
+  computers: readonly AppAgentComputerChoice[],
+  unavailable: string | null,
+) {
+  const options: Record<string, string> = Object.fromEntries(
+    computers.map((computer) => [computer.computerId, computer.name]),
+  );
+  options.new = "New Computer";
+  options.none = "No Computer";
+  const shown = {
     label: "Computer",
     kind: "select",
-    options: { new: "New Computer", none: "No Computer" },
-  }),
-);
+    icon: <Sigil name="computer" />,
+    options,
+  } as const;
+  return Schema.String.check(
+    Schema.makeFilter(
+      (value) => Object.hasOwn(options, value) || "Choose a Computer.",
+    ),
+  ).annotate(
+    field(unavailable === null ? shown : { ...shown, help: unavailable }),
+  );
+}
 const requests = defineIdFamily({
   family: "grove-agent-create-request",
   version: 1,
@@ -39,29 +66,35 @@ const requests = defineIdFamily({
 /** Form owns validation and retry identity; the inbox owns the remote mutation. */
 export function CreateAgentForm({
   create,
-  canChooseComputer,
+  computers,
+  computersUnavailable,
   inputRef,
   error,
   onCancel,
 }: {
   create: (intent: AppAgentCreateInput) => Promise<boolean>;
-  canChooseComputer: boolean;
+  /** The Team's Computers, newest first; null when the host offers no choice. */
+  computers: readonly AppAgentComputerChoice[] | null;
+  /** Why the Team's Computers could not be read; New and No Computer remain. */
+  computersUnavailable: string | null;
   inputRef?: Ref<HTMLInputElement>;
   error: string | null;
   onCancel: () => void;
 }) {
   const intent = useRef<AppAgentCreateInput | null>(null);
   // The avatar is a structured choice beside the form's text fields; a fresh
-  // seeded look per form keeps two new Agents from defaulting to one colour.
-  const [avatar, setAvatar] = useState<Avatar>(() =>
-    seededAvatar(requests.request.generate()),
-  );
+  // seeded colour per form keeps two new Agents from defaulting to one look.
+  const [avatar, setAvatar] = useState<Avatar>(() => {
+    const seed = requests.request.generate();
+    return swatchedAvatar(seededAvatar(seed), seed);
+  });
   const schema = useMemo(
     () =>
       Schema.Struct({
         name: nameSchema.annotate(
           field<string>({
             label: "Name",
+            icon: <Sigil name="write" />,
             // The dialog owns initial focus; the form keeps the native field name.
             render: (control) => (
               <Input
@@ -84,19 +117,24 @@ export function CreateAgentForm({
             ),
           }),
         ),
-        computer: computerSchema,
+        computer: computerField(computers ?? [], computersUnavailable),
       }),
-    [inputRef],
+    [inputRef, computers, computersUnavailable],
   );
+  const canChooseComputer = computers !== null;
+  const initial = { name: "", computer: defaultChoice(computers) };
   const model = useSchemaForm({
     schema,
-    defaultValues: { name: "", computer: appAgentComputerSchema.make("new") },
-    onSubmit: async ({ name, computer: selectedComputer }) => {
-      const computer = canChooseComputer ? selectedComputer : undefined;
+    defaultValues: initial,
+    onSubmit: async ({ name, computer: selected }) => {
+      const computer = canChooseComputer ? choiceOf(selected) : undefined;
       let request = intent.current;
       if (
         request?.name !== name ||
-        request.computer !== computer ||
+        (request.computer === undefined
+          ? undefined
+          : choiceValue(request.computer)) !==
+          (computer === undefined ? undefined : choiceValue(computer)) ||
         request.avatar !== avatar
       ) {
         const identity = {
@@ -109,10 +147,7 @@ export function CreateAgentForm({
       intent.current = request;
       if (await create(request)) {
         intent.current = null;
-        return {
-          kind: "saved",
-          values: { name: "", computer: appAgentComputerSchema.make("new") },
-        };
+        return { kind: "saved", values: initial };
       }
       // Keep the draft and request identity for retry; the footer shows Query errors.
       return { kind: "refused" };
@@ -133,6 +168,7 @@ export function CreateAgentForm({
   return (
     <SchemaForm
       model={model}
+      layout="columns"
       aria-label="Create Agent"
       footer={
         <FormFooter divider={false} error={error}>
@@ -157,7 +193,9 @@ export function CreateAgentForm({
         const value = model.form.state.values;
         if (
           value.name.trim() !== intent.current?.name ||
-          (canChooseComputer && value.computer !== intent.current.computer)
+          (canChooseComputer &&
+            intent.current.computer !== undefined &&
+            value.computer !== choiceValue(intent.current.computer))
         )
           intent.current = null;
       }}
@@ -166,19 +204,14 @@ export function CreateAgentForm({
         model={model}
         names={canChooseComputer ? ["name", "computer"] : ["name"]}
       />
-      <fieldset className="flex flex-col gap-xs">
-        <legend className="caps-label mb-xs text-sm font-semibold text-base-content">
-          Avatar
-        </legend>
-        <AgentAvatarPicker
-          value={avatar}
-          disabled={submitting}
-          onChange={(next) => {
-            setAvatar(next);
-            intent.current = null;
-          }}
-        />
-      </fieldset>
+      <AgentAvatarPicker
+        value={avatar}
+        disabled={submitting}
+        onChange={(next) => {
+          setAvatar(next);
+          intent.current = null;
+        }}
+      />
     </SchemaForm>
   );
 }
