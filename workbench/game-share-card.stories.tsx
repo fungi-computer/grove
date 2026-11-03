@@ -1,9 +1,11 @@
 import type { StoryDefault } from "@ladle/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameShareCard } from "../src/game-share-card.js";
 import "@fungi.computer/parakeet/styles.css";
 
 export default { title: "Grove / Published game" } satisfies StoryDefault;
 
+const queryClient = new QueryClient();
 const shareUrl = "https://vishnu.shiit.app/last-light";
 const previewGame = {
   title: "Last Light",
@@ -17,10 +19,12 @@ const previewGame = {
 };
 
 export const WithCapturedCover = () => (
-  <div className="flex min-h-screen items-center justify-center bg-base-200 p-lg">
-    <GameShareCard
-      previewGame={previewGame}
-      reply={`Last Light is ready.\nShare: ${shareUrl}`}
-    />
-  </div>
+  <QueryClientProvider client={queryClient}>
+    <div className="flex min-h-screen items-center justify-center bg-base-200 p-lg">
+      <GameShareCard
+        previewGame={previewGame}
+        reply={`Last Light is ready.\nShare: ${shareUrl}`}
+      />
+    </div>
+  </QueryClientProvider>
 );

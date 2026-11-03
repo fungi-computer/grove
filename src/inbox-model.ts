@@ -143,7 +143,9 @@ export function orderInbox(
   const live = new Map(
     rows.map((row) => [sessionKey(row.agentId, row.sessionId), row]),
   );
-  if (previous !== null && context.held) return previous;
+  // An empty list has no slots to keep steady under the pointer, so its first
+  // rows (for instance after a failed read is retried) always appear.
+  if (previous !== null && previous.length > 0 && context.held) return previous;
   const ranked = [...rows].sort(
     (a, b) =>
       (b.settledAt ?? b.createdAt) - (a.settledAt ?? a.createdAt) ||
