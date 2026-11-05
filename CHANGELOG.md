@@ -1,5 +1,20 @@
 # @fungi.computer/grove
 
+## 0.7.0
+
+### Minor Changes
+
+- Changes since 0.6.2:
+
+  - feat(front-doors): lead with the local try-it path and an install-now button
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/shiitake@0.11.0
+  - @fungi.computer/parakeet@0.8.1
+  - @fungi.computer/shiitake-extensions@0.6.5
+
 ## 0.6.2
 
 ### Patch Changes
