@@ -81,7 +81,7 @@ import { SquarePen } from "lucide-react";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { InboxList } from "./inbox-list.js";
-import { useWebsiteInbox, WebsiteConversation } from "./website-inbox.js";
+import { useWebsiteInbox } from "./website-inbox.js";
 import {
   createConversationOpeningOwner,
   eventSourceFor,
@@ -89,6 +89,11 @@ import {
   type OpenConversation,
   type PendingSelection,
 } from "@fungi.computer/parakeet/conversation-opening";
+
+const WebsiteConversation = lazy(async () => {
+  const module = await import("./website-conversation.js");
+  return { default: module.WebsiteConversation };
+});
 
 const ParakeetConversation = lazy(async () => {
   const module = await import("./parakeet-conversation.js");
@@ -1264,7 +1269,9 @@ function ConnectedInbox({
         ) : null}
         {openConversation || websites.selected ? startFailureNotice : null}
         {websites.selected ? (
-          <WebsiteConversation inbox={websites} />
+          <Suspense fallback={null}>
+            <WebsiteConversation inbox={websites} />
+          </Suspense>
         ) : openConversation ? (
           <Conversation
             open={openConversation}

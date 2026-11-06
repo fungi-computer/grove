@@ -1,5 +1,22 @@
 # @fungi.computer/grove
 
+## 0.7.1
+
+### Patch Changes
+
+- Changes since 0.7.0:
+
+  - fix(grove): defer the website conversation view until selected
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/maosaico@0.1.1
+  - @fungi.computer/parakeet@0.8.2
+  - @fungi.computer/shiitake@0.11.1
+  - @fungi.computer/caps@0.7.1
+  - @fungi.computer/shiitake-extensions@0.6.6
+
 ## 0.7.0
 
 ### Minor Changes
