@@ -81,6 +81,20 @@ function Workbench({
 export const Inbox = () => <Workbench />;
 /** A read-only model label must yield to the phone composer's Send key. */
 export const LongModel = () => <Workbench scenario="long-model" />;
+/** A host-admitted Agent catalog powers the pane's one /model picker. */
+export const ModelPicker = () => (
+  <Workbench
+    scenario="model-picker"
+    openRequest={{
+      kind: "navigate",
+      requestId: "model-picker-preview",
+      params: [
+        { key: "agent", value: "gardener" },
+        { key: "session", value: "gardener-1" },
+      ],
+    }}
+  />
+);
 export const CommandRetry = () => <Workbench scenario="command-retry" />;
 /** An open conversation streams while a foreign Session gains attention. */
 export const StableInbox = () => (

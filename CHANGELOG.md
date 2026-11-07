@@ -1,5 +1,36 @@
 # @fungi.computer/grove
 
+## 0.8.0
+
+### Minor Changes
+
+- Changes since 0.7.1:
+
+  - fix(tests): settle approval and key views before assertions
+  - fix(subagents): report children beyond the status read ceiling
+  - fix(subagents): count every child before prioritizing footer rows
+  - fix(parakeet): open shared model picker from Settings row
+  - fix(grove): keep model picker consumer checks lint-clean
+  - fix(grove): retain readonly host models and await catalog closure
+  - feat(grove): pick host-admitted Agent models through shared Session command
+  - fix(grove): merge integration and restore composer model picker
+  - fix(subagents): merge integration and finish active footer counts
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.7.2
+  - @fungi.computer/gills@0.2.2
+  - @fungi.computer/parakeet@0.9.0
+  - @fungi.computer/shiitake-extensions@0.6.7
+  - @fungi.computer/shiitake@0.12.0
+  - @fungi.computer/knapsack@0.4.6
+  - @fungi.computer/approvals@0.2.1
+
 ## 0.7.1
 
 ### Patch Changes

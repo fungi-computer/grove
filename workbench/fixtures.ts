@@ -13,6 +13,7 @@ import {
   agentAvatar,
   agentManage,
   agentList,
+  agentSessionRead,
   agentSessionWrite,
   type AppAgent,
 } from "@fungi.computer/agar/agents";
@@ -39,6 +40,7 @@ import type {
   SessionSnapshot,
   ShiitakeSession,
 } from "@fungi.computer/shiitake/client";
+import type { ModelPreference } from "@fungi.computer/shiitake/model-preference";
 import {
   gardenCall,
   gardenExtensionId,
@@ -83,6 +85,18 @@ const subagentSlots = {
         },
       ],
       more: 0,
+      uncounted: 0,
+      counts: {
+        working: 1,
+        waiting_on_agent: 0,
+        needs_you: 1,
+        idle: 1,
+        failed: 0,
+        unavailable: 0,
+      },
+      escalated: 0,
+      waitingOn: [],
+      escalatedBy: [],
       expanded: true,
     }),
   },
@@ -106,6 +120,7 @@ export type GroveScenario =
   | "websites-collision"
   | "inbox"
   | "long-model"
+  | "model-picker"
   | "safety-notice"
   | "seller-closed"
   | "thousand"
@@ -260,6 +275,7 @@ function previewSession(
 ): ShiitakeSession {
   const admittedRequests = new Map<string, string>();
   const withdrawnRequests = new Set<string>();
+  let chosenModel: ModelPreference | null = null;
   let gardenCalls = 0;
   const index = Number(sessionId.slice(sessionId.lastIndexOf("-") + 1));
   const publishedGame =
@@ -1069,7 +1085,14 @@ function previewSession(
     send: unsupported,
     cancel: unsupported,
     abort: unsupported,
-    modelPreference: { read: () => Promise.resolve(null), set: unsupported },
+    modelPreference: {
+      read: () => Promise.resolve(chosenModel),
+      set: (next) => {
+        if (scenario !== "model-picker") return unsupported();
+        chosenModel = next;
+        return Promise.resolve();
+      },
+    },
     read: () => Promise.resolve(snapshot),
     subscribe: changes,
     watch: () =>
@@ -1387,6 +1410,30 @@ export function createGroveFixture(
     }
   }
   const createdAgents: AppAgent[] = [];
+  if (scenario === "model-picker")
+    capabilities.provide(agentSessionRead, {
+      open: () =>
+        Promise.resolve({
+          fetch: (request: Request) => {
+            if (new URL(request.url).pathname !== "/models")
+              throw new Error("Unexpected Agent read");
+            return Promise.resolve(
+              Response.json([
+                {
+                  providerId: "@fungi",
+                  providerName: "Fungi",
+                  id: "openai/gpt-6-luna",
+                  name: "GPT-6 Luna",
+                  reasoning: ["low", "high"],
+                },
+              ]),
+            );
+          },
+          close: () => Promise.resolve(),
+          [Symbol.dispose]: () => undefined,
+        }),
+      openInbox: unsupported,
+    });
   capabilities.provide(agentList, {
     list: async () => {
       if (scenario === "loading")

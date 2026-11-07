@@ -37,17 +37,19 @@ import type {
   AppStatusItem,
 } from "@fungi.computer/agar";
 import { useGroveCommands } from "./grove-commands.js";
+import { readAgentModels } from "./agent-models.js";
+import type { AgentModelList } from "@fungi.computer/shiitake/model-list";
 import { createWhistle } from "@fungi.computer/whistle";
 import type { RowV1 } from "@fungi.computer/gills";
 import { defineIdFamily } from "@fungi.computer/cairn/id";
 import { correlationKey } from "@fungi.computer/cairn";
-import type { ParakeetSession } from "@fungi.computer/parakeet";
 import {
   ShiitakeAvatar,
   type AgentHeadActivity,
 } from "@fungi.computer/parakeet";
 import {
-  contributeSessionCommands,
+  sessionModelCommandDefinitions,
+  sessionCommandDefinitions,
   sessionQueryOptions,
   sessionViewState,
   type ParakeetCommandRuntime,
@@ -179,20 +181,92 @@ function Conversation({
   onOpen: (target: NonNullable<RowV1["open"]>) => void;
   label?: string;
 }): React.JSX.Element {
-  const session: ParakeetSession = open.session;
+  const session = open.session;
+  const [modelCatalog, setModelCatalog] = useState<
+    | { kind: "loading" }
+    | { kind: "unavailable" }
+    | { kind: "ready"; models: AgentModelList }
+  >({ kind: "loading" });
   useEffect(() => {
-    // Each pane has its own command runtime, so this source never collides.
-    const lease = contributeSessionCommands(commands, session, {
+    if (!connection || renderConversation) return;
+    const controller = new AbortController();
+    setModelCatalog({ kind: "loading" });
+    void readAgentModels(
+      connection.capabilities,
+      open.agentId,
+      controller.signal,
+    ).then(
+      (models) => {
+        if (!controller.signal.aborted)
+          setModelCatalog({ kind: "ready", models });
+      },
+      () => {
+        if (!controller.signal.aborted)
+          setModelCatalog({ kind: "unavailable" });
+      },
+    );
+    return () => {
+      controller.abort();
+    };
+  }, [connection, open.agentId, renderConversation]);
+  useEffect(() => {
+    // One source owns the Session namespace. The model key, Settings and
+    // /model all invoke the same command and Shiitake preference owner.
+    const lease = commands.contribute({
       sourceId: "grove-session",
       namespace: "session",
-      sessionResumeAvailable: false,
-      forkAvailable: true,
-      onForked,
+      commands: [
+        ...sessionCommandDefinitions(session, {
+          sourceId: "grove-session",
+          namespace: "session",
+          sessionResumeAvailable: false,
+          forkAvailable: true,
+          onForked,
+        }),
+        ...(renderConversation
+          ? []
+          : sessionModelCommandDefinitions(session, {
+              sourceId: "grove-session",
+              namespace: "session",
+              models: modelCatalog.kind === "ready" ? modelCatalog.models : [],
+              refreshModels: (signal) => {
+                if (!connection)
+                  return Promise.reject(
+                    new Error("Agent connection is unavailable"),
+                  );
+                return readAgentModels(
+                  connection.capabilities,
+                  open.agentId,
+                  signal,
+                );
+              },
+              availability: () =>
+                modelCatalog.kind === "ready" && modelCatalog.models.length > 0
+                  ? { status: "available" }
+                  : {
+                      status: "unavailable",
+                      reason:
+                        modelCatalog.kind === "loading"
+                          ? "Loading this Agent's models"
+                          : modelCatalog.kind === "ready"
+                            ? "This Agent has no available models"
+                            : "This Agent's model catalog is unavailable",
+                    },
+            })),
+      ],
     });
     return () => {
       lease.dispose();
     };
-  }, [commands, session, onForked]);
+  }, [
+    commands,
+    session,
+    onForked,
+    renderConversation,
+    modelCatalog,
+    connection,
+    open.agentId,
+  ]);
   return (
     <section
       className="inbox-conversation min-h-0 min-w-0 flex-1"
