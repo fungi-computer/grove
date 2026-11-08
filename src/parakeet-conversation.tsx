@@ -76,6 +76,7 @@ export function ParakeetConversation({
   onPrefilled = () => undefined,
   onOpen,
   models,
+  autoFocus,
 }: {
   session: ParakeetSession;
   draftIdentity: ParakeetDraftIdentity;
@@ -91,6 +92,8 @@ export function ParakeetConversation({
   onOpen?: ((target: NonNullable<RowV1["open"]>) => void) | undefined;
   /** Whether the host has a model connected; absent when it does not say. */
   models?: SetupState | undefined;
+  /** Focus the composer on open, so the person can just type. */
+  autoFocus?: boolean | undefined;
 }): React.JSX.Element {
   const ui = connection?.ui ?? null;
   const capabilities = connection?.capabilities;
@@ -161,6 +164,7 @@ export function ParakeetConversation({
           onLink={onLink}
           onOpen={onOpen}
           hostFacts={hostFacts}
+          autoFocus={autoFocus}
           composerActionVariant="outline"
           commands={commands}
           renderAssistantAttachment={renderAssistantAttachment}

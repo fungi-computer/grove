@@ -1,5 +1,20 @@
 # @fungi.computer/grove
 
+## 0.10.0
+
+### Minor Changes
+
+- Changes since 0.9.0:
+
+  - feat(grove): open a conversation with the Agent and focus the composer
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/caps@0.10.0
+  - @fungi.computer/parakeet@0.11.0
+
 ## 0.9.0
 
 ### Minor Changes

@@ -1542,6 +1542,8 @@ export function createGroveFixture(
   let failedStart = false;
   let previewTurns = 0;
   const services: InboxServices = {
+    // The real app opens a first conversation by itself; the workbench does too.
+    autoOpen: true,
     openAgent: (_capabilities, { agentId }) => {
       if (scenario === "open-error" && agentId === "maker")
         return Promise.reject(new Error("Maker is unavailable"));

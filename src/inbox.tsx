@@ -112,6 +112,8 @@ export type InboxServices = Readonly<{
   createClient: (
     options: Parameters<typeof createShiitakeClient>[0],
   ) => InboxClient;
+  /** Open a conversation with the first Agent when there is nothing to pick up. */
+  autoOpen?: boolean;
   renderConversation?: (
     open: OpenConversation,
     composeDraft: Readonly<{
@@ -126,6 +128,7 @@ export type InboxServices = Readonly<{
 const defaultServices: InboxServices = {
   openAgent: openAppAgent,
   createClient: createShiitakeClient,
+  autoOpen: true,
 };
 
 /** Grove asks its host for these; the host bounds and grants them. */
@@ -179,11 +182,14 @@ function Conversation({
   onForked,
   onOpen,
   models,
+  autoFocus,
   label = "Conversation",
 }: {
   connection: AppRoot | null;
   /** Whether the host has a model connected, when it says. */
   models?: SetupState | undefined;
+  /** Focus the composer on open (the main pane, not a beside conversation). */
+  autoFocus?: boolean | undefined;
   commands: ParakeetCommandRuntime;
   open: OpenConversation;
   renderConversation?: InboxServices["renderConversation"];
@@ -310,6 +316,7 @@ function Conversation({
             onPrefilled={onPrefilled}
             onOpen={onOpen}
             models={models}
+            autoFocus={autoFocus}
           />
         </Suspense>
       )}
@@ -958,12 +965,56 @@ function ConnectedInbox({
   const facetAgent =
     agentFilterId === null ? undefined : agentById.get(agentFilterId);
   const canRenameAgent = connection?.capabilities.has(agentRename) ?? false;
+  // The starter Agent is named by the host; the person renames it from here.
+  const soleAgent = agents.length === 1 ? agents[0] : undefined;
+  const renameTarget = facetAgent ?? soleAgent;
   const canSetAgentAvatar = connection?.capabilities.has(agentAvatar) ?? false;
   const toolPolicy = useAgentToolPolicy(
     connection,
     facetAgent?.agentId ?? null,
   );
   const listed = view.active.length + view.settled.length;
+
+  // With an Agent present and nothing to pick up, open a conversation with it: the
+  // composer is the first thing on screen, and Grove open → type → Enter sends.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (
+      services.autoOpen !== true ||
+      autoStarted.current ||
+      !connection ||
+      openConversation ||
+      openRequest !== null ||
+      directoryLoading ||
+      loadingSessions ||
+      inboxFailed ||
+      error ||
+      modelsMissing ||
+      listed > 0 ||
+      startAgent === undefined ||
+      !canWriteAgent ||
+      startingAgentId !== null
+    )
+      return;
+    autoStarted.current = true;
+    void startConversation(startAgent.agentId);
+  }, [
+    canWriteAgent,
+    connection,
+    directoryLoading,
+    error,
+    inboxFailed,
+    listed,
+    loadingSessions,
+    modelsMissing,
+    openConversation,
+    openRequest,
+    services.autoOpen,
+    startAgent,
+    startConversation,
+    startingAgentId,
+  ]);
+
   const renameAgent = useCallback(
     async (agentId: string, name: string): Promise<boolean> => {
       if (!connection) return false;
@@ -1206,11 +1257,11 @@ function ConnectedInbox({
                   ? agentLabel(facetAgent)
                   : "All Agents"}
             </DataListHeading>
-            {facetAgent && canRenameAgent ? (
+            {renameTarget && canRenameAgent ? (
               <RenameAgentControl
-                key={facetAgent.agentId}
-                agentId={facetAgent.agentId}
-                name={facetAgent.name}
+                key={renameTarget.agentId}
+                agentId={renameTarget.agentId}
+                name={renameTarget.name}
                 rename={renameAgent}
               />
             ) : null}
@@ -1400,6 +1451,7 @@ function ConnectedInbox({
             onForked={onForked}
             onOpen={openBeside}
             models={appContext?.setup?.models}
+            autoFocus={desktop}
           />
         ) : !connection || directoryLoading ? null : agents.length === 0 &&
           !error ? (
