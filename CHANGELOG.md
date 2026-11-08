@@ -1,5 +1,32 @@
 # @fungi.computer/grove
 
+## 0.9.0
+
+### Minor Changes
+
+- Changes since 0.8.2:
+
+  - feat(grove): setup-first first run, clickable starters, fewer steps to a
+    first Agent
+  - feat(agar): first-run setup facts, openSetup, more permission families
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.9.0
+  - @fungi.computer/caps@0.9.0
+  - @fungi.computer/gills@0.3.0
+  - @fungi.computer/parakeet@0.10.0
+  - @fungi.computer/sprite@0.2.2
+  - @fungi.computer/shiitake@0.12.3
+  - @fungi.computer/shiitake-extensions@0.6.10
+  - @fungi.computer/sprite-zdog@0.3.2
+  - @fungi.computer/knapsack@0.4.9
+
 ## 0.8.2
 
 ### Patch Changes

@@ -34,6 +34,7 @@ import { AllowAppToolsControl } from "./allow-app-tools-control.js";
 import type {
   AgentAccessOperation,
   AppRoot,
+  SetupState,
   AppStatusItem,
 } from "@fungi.computer/agar";
 import { useGroveCommands } from "./grove-commands.js";
@@ -83,6 +84,9 @@ import { IconButton } from "@fungi.computer/caps/components/icon-button";
 import { SquarePen } from "lucide-react";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
+import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
+import { SetupNotice } from "@fungi.computer/caps/blocks/setup-notice";
+import { starterPrompts } from "./starters.js";
 import { InboxList } from "./inbox-list.js";
 import { useWebsiteInbox } from "./website-inbox.js";
 import {
@@ -110,7 +114,11 @@ export type InboxServices = Readonly<{
   ) => InboxClient;
   renderConversation?: (
     open: OpenConversation,
-    composeDraft: Readonly<{ requestId: string; text: string }> | null,
+    composeDraft: Readonly<{
+      requestId: string;
+      text: string;
+      send?: boolean;
+    }> | null,
     onOpen: (target: NonNullable<RowV1["open"]>) => void,
   ) => React.ReactNode;
 }>;
@@ -170,13 +178,20 @@ function Conversation({
   onPrefilled,
   onForked,
   onOpen,
+  models,
   label = "Conversation",
 }: {
   connection: AppRoot | null;
+  /** Whether the host has a model connected, when it says. */
+  models?: SetupState | undefined;
   commands: ParakeetCommandRuntime;
   open: OpenConversation;
   renderConversation?: InboxServices["renderConversation"];
-  composeDraft: Readonly<{ requestId: string; text: string }> | null;
+  composeDraft: Readonly<{
+    requestId: string;
+    text: string;
+    send?: boolean;
+  }> | null;
   onPrefilled: () => void;
   onForked: (sessionId: string) => void;
   onOpen: (target: NonNullable<RowV1["open"]>) => void;
@@ -279,9 +294,11 @@ function Conversation({
       ) : (
         <Suspense
           fallback={
-            <p className="p-3 text-sm text-(--stipe-fg-muted)" role="status">
-              Opening conversation…
-            </p>
+            <LoadingState
+              className="m-auto"
+              framed={false}
+              message="Opening conversation…"
+            />
           }
         >
           <ParakeetConversation
@@ -292,6 +309,7 @@ function Conversation({
             prefill={composeDraft}
             onPrefilled={onPrefilled}
             onOpen={onOpen}
+            models={models}
           />
         </Suspense>
       )}
@@ -439,8 +457,16 @@ function ConnectedInbox({
   const [composeDraft, setComposeDraft] = useState<Readonly<{
     requestId: string;
     text: string;
+    send?: boolean;
   }> | null>(null);
-  const openRequest = useAppContext(connection)?.openRequest ?? null;
+  const appContext = useAppContext(connection);
+  const openRequest = appContext?.openRequest ?? null;
+  const modelsMissing = appContext?.setup?.models === "missing";
+  const openModelSetup = useCallback(() => {
+    void connection?.ui.openSetup("model").catch((cause: unknown) => {
+      console.error("Grove could not open model setup", cause);
+    });
+  }, [connection]);
   const handledOpenRequestId = useRef<string | null>(null);
   const conversationOpener = useMemo(
     () =>
@@ -601,7 +627,7 @@ function ConnectedInbox({
   );
 
   const startConversation = useCallback(
-    async (agentId: string) => {
+    async (agentId: string, starter?: string) => {
       if (!connection || startingAgentId !== null)
         return "Conversation creation is unavailable.";
       setConversationError(null);
@@ -617,6 +643,13 @@ function ConnectedInbox({
         const sessionId = await startMutation.mutateAsync(intent);
         // The loaded member inbox owns the new row and resumes its feed.
         selectSession(agentId, sessionId);
+        // A chosen starter sends as written once the conversation is open.
+        if (starter !== undefined)
+          setComposeDraft({
+            requestId: correlationKey(),
+            text: starter,
+            send: true,
+          });
         // Session creation can beat this App's visibility feed delta. Reload
         // the owner snapshot without delaying the new conversation opening.
         inbox.refresh();
@@ -1366,6 +1399,7 @@ function ConnectedInbox({
             }}
             onForked={onForked}
             onOpen={openBeside}
+            models={appContext?.setup?.models}
           />
         ) : !connection || directoryLoading ? null : agents.length === 0 &&
           !error ? (
@@ -1388,12 +1422,16 @@ function ConnectedInbox({
             )}
             title={canCreateAgent ? "No one's here yet." : "Welcome to Grove"}
             description={
-              canCreateAgent
-                ? "Agents chat, write and make little games with you. Name someone?"
-                : "Let Grove find your Agents, create new ones, and open conversations. Your Team controls this access."
+              canCreateAgent && modelsMissing
+                ? "Agents chat, write and make little games with you. Connect a model to start chatting."
+                : canCreateAgent
+                  ? "Agents chat, write and make little games with you. Name someone?"
+                  : "Let Grove find your Agents, create new ones, and open conversations. Your Team controls this access."
             }
             actions={
-              canCreateAgent ? (
+              canCreateAgent && modelsMissing ? (
+                <Button onClick={openModelSetup}>Add a model key</Button>
+              ) : canCreateAgent ? (
                 <Button
                   onClick={() => {
                     openCreation("agent");
@@ -1407,7 +1445,20 @@ function ConnectedInbox({
             }
           />
         ) : (
-          (startFailureNotice ?? (
+          (startFailureNotice ??
+          (modelsMissing && listed === 0 ? (
+            <SetupNotice
+              className="inbox-empty m-auto max-w-[28rem]"
+              cause={
+                startAgent
+                  ? `${agentLabel(startAgent)} answers with a model, and none is connected yet.`
+                  : "Agents answer with a model, and none is connected yet."
+              }
+              fix={{ label: "Add a model key", onSelect: openModelSetup }}
+              need="Connect a model to start chatting"
+              variant="panel"
+            />
+          ) : (
             <EmptyState
               className="inbox-empty m-auto max-w-[28rem]"
               variant="panel"
@@ -1421,7 +1472,18 @@ function ConnectedInbox({
               description={
                 listed > 0
                   ? "Choose one from the list, or ask for something new. A tiny game is a good start."
-                  : "Ask for anything. Try: “Make me a tiny game where a mushroom catches raindrops.”"
+                  : "Ask for anything. Pick one to start."
+              }
+              suggestions={
+                listed === 0 && canStart
+                  ? starterPrompts.map((prompt) => ({
+                      label: prompt,
+                      disabled: startingAgentId !== null,
+                      onSelect: () => {
+                        void startConversation(startAgent.agentId, prompt);
+                      },
+                    }))
+                  : undefined
               }
               actions={
                 <>
@@ -1451,7 +1513,7 @@ function ConnectedInbox({
                 </>
               }
             />
-          ))
+          )))
         )}
       </section>
       {besideConversation === null ? null : (
@@ -1471,6 +1533,7 @@ function ConnectedInbox({
               besideOpener?.select(besideConversation.agentId, sessionId);
             }}
             onOpen={openBeside}
+            models={appContext?.setup?.models}
             label="Beside conversation"
           />
         </section>

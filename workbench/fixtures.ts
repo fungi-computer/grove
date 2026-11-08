@@ -1,3 +1,4 @@
+import type { SetupState } from "@fungi.computer/agar";
 import { seededAvatar } from "@fungi.computer/sprite/avatar";
 import {
   inertHostNavigation,
@@ -1113,12 +1114,22 @@ export function createGroveFixture(
   scenario: GroveScenario,
   openRequest: AppOpenRequest | null = null,
   unavailableSessionIds: readonly string[] = [],
+  models?: SetupState,
 ) {
   const appContext = store({
     computerId: null,
     focus: { editing: false, surface: null },
     openRequest,
     visibility: "visible" as const,
+    // A host that publishes setup says whether a model is connected.
+    ...(models !== undefined && {
+      setup: {
+        models,
+        media: models,
+        git: "unknown" as const,
+        terminal: "unknown" as const,
+      },
+    }),
   });
   // The owner's run status drives the shelves; row-states adds a queued row.
   const previewStatus = (agentId: string, index: number): PreviewStatus =>
@@ -1258,6 +1269,7 @@ export function createGroveFixture(
       requestBrowserAction: () => {
         throw new Error("Unexpected browser action");
       },
+      openSetup: () => Promise.resolve("unavailable"),
       openDesktopSettings: () => Promise.resolve(),
       reportAgentSessionSelection: () => Promise.resolve(),
       showToast: () => Promise.resolve(),

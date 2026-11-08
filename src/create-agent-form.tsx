@@ -122,6 +122,8 @@ export function CreateAgentForm({
     [inputRef, computers, computersUnavailable],
   );
   const canChooseComputer = computers !== null;
+  // A name is all a first Agent needs; Computer and look keep sensible defaults.
+  const [moreOpen, setMoreOpen] = useState(false);
   const initial = { name: "", computer: defaultChoice(computers) };
   const model = useSchemaForm({
     schema,
@@ -175,6 +177,16 @@ export function CreateAgentForm({
           <Button
             type="button"
             variant="ghost"
+            aria-expanded={moreOpen}
+            onClick={() => {
+              setMoreOpen((open) => !open);
+            }}
+          >
+            {moreOpen ? "Fewer options" : "More options"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
             disabled={submitting}
             onClick={onCancel}
           >
@@ -202,16 +214,18 @@ export function CreateAgentForm({
     >
       <FormFields
         model={model}
-        names={canChooseComputer ? ["name", "computer"] : ["name"]}
+        names={canChooseComputer && moreOpen ? ["name", "computer"] : ["name"]}
       />
-      <AgentAvatarPicker
-        value={avatar}
-        disabled={submitting}
-        onChange={(next) => {
-          setAvatar(next);
-          intent.current = null;
-        }}
-      />
+      {moreOpen ? (
+        <AgentAvatarPicker
+          value={avatar}
+          disabled={submitting}
+          onChange={(next) => {
+            setAvatar(next);
+            intent.current = null;
+          }}
+        />
+      ) : null}
     </SchemaForm>
   );
 }

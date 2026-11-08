@@ -14,7 +14,7 @@ import {
   type GroveScenario,
   publishedGameFixture,
 } from "./fixtures.js";
-import type { AppOpenRequest } from "@fungi.computer/agar";
+import type { AppOpenRequest, SetupState } from "@fungi.computer/agar";
 import { useWorkbenchStatusBar } from "./status-bar.fixture.js";
 import "@fungi.computer/parakeet/styles.css";
 
@@ -25,14 +25,17 @@ function Workbench({
   narrow = false,
   openRequest = null,
   unavailableSessionIds = [],
+  models,
 }: {
   scenario?: GroveScenario;
   narrow?: boolean;
   openRequest?: AppOpenRequest | null;
   unavailableSessionIds?: readonly string[];
+  /** The host's setup fact; omit for a host that does not say. */
+  models?: SetupState;
 }) {
   const [fixture] = useState(() =>
-    createGroveFixture(scenario, openRequest, unavailableSessionIds),
+    createGroveFixture(scenario, openRequest, unavailableSessionIds, models),
   );
   const { status, bar } = useWorkbenchStatusBar();
   const connection = useMemo(
@@ -313,4 +316,32 @@ export const ConversationInterrupted = () => (
 );
 export const ConversationCancelled = () => (
   <Conversation scenario="conversation-cancelled" />
+);
+
+/** First run, no model: the purpose line and the one fix. */
+export const FirstRunNoModel = () => (
+  <Workbench scenario="no-agents" models="missing" />
+);
+/** An Agent exists but no model is connected. */
+export const AgentNoModel = () => (
+  <Workbench scenario="empty" models="missing" />
+);
+/** A model is connected: three starters that send. */
+export const FirstRunStarters = () => (
+  <Workbench scenario="empty" models="ready" />
+);
+/** Inside a conversation with no model: connect-a-model panel, composer says why. */
+export const ConversationNoModel = () => (
+  <Workbench
+    scenario="conversation-empty"
+    models="missing"
+    openRequest={{
+      kind: "navigate",
+      requestId: "grove-conversation-empty",
+      params: [
+        { key: "agent", value: "gardener" },
+        { key: "session", value: "gardener-1" },
+      ],
+    }}
+  />
 );
