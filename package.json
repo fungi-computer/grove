@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/grove",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit",
@@ -13,7 +13,7 @@
     "@fungi.computer/caps": "0.10.1",
     "@fungi.computer/knapsack": "0.4.9",
     "@fungi.computer/maosaico": "0.1.1",
-    "@fungi.computer/parakeet": "0.11.1",
+    "@fungi.computer/parakeet": "0.11.2",
     "@fungi.computer/shiitake": "0.12.3",
     "@fungi.computer/sigils": "0.3.0",
     "@fungi.computer/sprite": "0.2.2",
