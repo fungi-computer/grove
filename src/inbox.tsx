@@ -57,6 +57,7 @@ import {
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useAppContext, useWindowStatus } from "@fungi.computer/agar/react";
 import { queryKeys } from "@fungi.computer/agar/query";
+import { appStorage } from "@fungi.computer/agar/storage";
 import { useInboxData, useAgentToolPolicy } from "./queries.js";
 import { AgentAvatarControl } from "./agent-avatar-control.js";
 import type { Avatar } from "@fungi.computer/sprite/avatar";
@@ -386,7 +387,14 @@ function ConnectedInbox({
   const selectedSessionId = openConversation?.sessionId ?? null;
   const [creation, setCreation] = useState<"agent" | "session" | null>(null);
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
-  const [layout, setLayout] = useGroveLayout();
+  const layoutStorage = useMemo(
+    () =>
+      connection?.capabilities.has(appStorage)
+        ? connection.capabilities.require(appStorage)
+        : undefined,
+    [connection],
+  );
+  const [layout, setLayout] = useGroveLayout(layoutStorage);
   const { agentRailOpen, listRailOpen, listWidth } = layout;
   const setAgentRailOpen = (open: (current: boolean) => boolean) => {
     setLayout((current) => ({

@@ -33,11 +33,11 @@ export const inboxGill = defineAppGill({
       output,
     );
     const view = buildInboxSessionView(data.items);
-    if (
-      view.active.length === 0 &&
-      view.settled.length === 0 &&
-      view.unavailable.length > 0
-    )
+    // A conversation with no first message has nothing to list yet.
+    const listed = [...view.active, ...view.settled].filter(
+      (item) => !(item.title === "" && item.ready),
+    );
+    if (listed.length === 0 && view.unavailable.length > 0)
       return {
         viewId: "inbox",
         title: "Inbox",
@@ -47,10 +47,10 @@ export const inboxGill = defineAppGill({
           "Saved conversations couldn't be read. Open Grove to check access and refresh.",
         recovery: { kind: "open" },
       };
-    const rows: RowV1[] = [...view.active, ...view.settled].map((item) => {
+    const rows: RowV1[] = listed.map((item) => {
       const row: RowV1 = {
         id: memberInboxKey(item.agentId, item.sessionId),
-        title: item.title || "Untitled session",
+        title: item.title || "New conversation",
         status: {
           label: inboxStatusCopy[item.state],
           tone: stateTones[item.state],

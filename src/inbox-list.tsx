@@ -11,6 +11,7 @@ import { IconButton } from "@fungi.computer/caps/components/icon-button";
 import { Trash2 } from "lucide-react";
 import { ActionRow } from "@fungi.computer/caps/components/action-row";
 import { DataListHeading } from "@fungi.computer/caps/components/data-list";
+import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
 import { Status } from "@fungi.computer/caps/components/status";
 import { Sigil } from "@fungi.computer/sigils";
 import type { WebsiteInboxRow } from "./website-inbox.js";
@@ -49,17 +50,20 @@ function flatten(
   const rows: Row[] = [];
   if (loading) rows.push({ kind: "hint", key: "loading", loading: true });
   let groups = 0;
-  const live = [...view.active, ...view.settled];
+  // A conversation with no first message has nothing to list yet.
+  const live = [...view.active, ...view.settled].filter(
+    (row) => !(row.title === "" && row.ready),
+  );
   const byKey = new Map(
     live.map((row) => [sessionKey(row.agentId, row.sessionId), row]),
   );
   for (const title of ["Needs you", "Working", "Ready", "Finished"] as const) {
-    const sessions = placements
-      .filter((entry) => entry.shelf === title)
-      .flatMap((entry) => {
-        const row = byKey.get(entry.key);
-        return row === undefined ? [] : [row];
-      });
+    const sessions = placements.flatMap((entry) => {
+      const row = byKey.get(entry.key);
+      // A failed conversation needs the member, so it never sits in Ready.
+      const shelf = row?.state === "errored" ? "Needs you" : entry.shelf;
+      return row === undefined || shelf !== title ? [] : [row];
+    });
     if (sessions.length === 0) continue;
     rows.push({
       kind: "heading",
@@ -283,18 +287,16 @@ export function InboxList({
                   {row.title}
                 </DataListHeading>
               ) : row.kind === "hint" ? (
-                <p
-                  className={
-                    row.loading
-                      ? "inbox-empty m-0 px-2 py-3 text-sm text-(--stipe-fg-muted)"
-                      : "m-0 px-2 py-3 text-xs text-(--stipe-fg-muted)"
-                  }
-                  role={row.loading ? "status" : undefined}
-                >
-                  {row.loading
-                    ? "Loading conversations…"
-                    : "No conversations yet."}
-                </p>
+                row.loading ? (
+                  <LoadingState
+                    className="inbox-empty px-2 py-3 text-sm text-(--stipe-fg-muted)"
+                    message="Loading conversations…"
+                  />
+                ) : (
+                  <p className="m-0 px-2 py-3 text-xs text-(--stipe-fg-muted)">
+                    No conversations yet.
+                  </p>
+                )
               ) : row.kind === "website" ? (
                 <ActionRow
                   appearance="plain"
@@ -434,7 +436,7 @@ function SessionRow({
     <div className="relative group">
       <ActionRow
         aria-current={selected ? "page" : undefined}
-        aria-label={`${session.title || "Untitled session"} — ${agentLabel(agent)}${attention ? " — Finished since your last visit" : ""}${session.ready ? " — Ready" : inPlay || errored ? ` — ${inboxStatusCopy[session.state]}` : ""}`}
+        aria-label={`${session.title || "New conversation"} — ${agentLabel(agent)}${attention ? " — Finished since your last visit" : ""}${session.ready ? " — Ready" : inPlay || errored ? ` — ${inboxStatusCopy[session.state]}` : ""}`}
         aria-busy={pending || undefined}
         appearance="plain"
         className={`inbox-row pr-9${selected ? " is-selected bg-base-300" : ""}`}
@@ -445,14 +447,14 @@ function SessionRow({
         data-testid="inbox-session-row"
         density="compact"
         description={agentLabel(agent)}
-        label={session.title || "Untitled session"}
+        label={session.title || "New conversation"}
         onClick={onSelect}
         trailing={activity}
         variant="ghost"
       />
       {onDelete ? (
         <IconButton
-          aria-label={`Delete conversation ${session.title || "Untitled session"}`}
+          aria-label={`Delete conversation ${session.title || "New conversation"}`}
           title="Delete conversation"
           icon={<Trash2 />}
           iconSize="sm"

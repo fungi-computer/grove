@@ -1,5 +1,33 @@
 # @fungi.computer/grove
 
+## 0.8.2
+
+### Patch Changes
+
+- Changes since 0.8.1:
+
+  - fix(grove): name new conversations plainly and keep failures out of Ready
+  - fix(grove): export the layout storage type
+  - fix(grove): keep rail layout in host App storage
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.8.0
+  - @fungi.computer/caps@0.8.0
+  - @fungi.computer/shiitake@0.12.2
+  - @fungi.computer/sprite@0.2.1
+  - @fungi.computer/stipe@0.1.1
+  - @fungi.computer/parakeet@0.9.2
+  - @fungi.computer/knapsack@0.4.8
+  - @fungi.computer/shiitake-extensions@0.6.9
+  - @fungi.computer/sprite-zdog@0.3.1
+  - @fungi.computer/maosaico@0.1.1
+  - @fungi.computer/sigils@0.3.0
+  - @fungi.computer/approvals@0.2.3
+
 ## 0.8.1
 
 ### Patch Changes
