@@ -1,6 +1,5 @@
 import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import { Alert } from "@fungi.computer/caps/components/alert";
-import { DataListHeading } from "@fungi.computer/caps/components/data-list";
 import { CardTitle } from "@fungi.computer/caps/components/card";
 import { AgentRail } from "./agent-rail.js";
 import { TeamNotices } from "./team-notices.js";
@@ -892,6 +891,21 @@ function ConnectedInbox({
         : null;
     setNavOpen(true);
   };
+  const listed = listedInboxRows(view).length;
+  const emptyModelSetup =
+    desktop &&
+    modelsMissing &&
+    listed === 0 &&
+    view.unavailable.length === 0 &&
+    websites.rows.length === 0 &&
+    !openConversation &&
+    !websites.selected &&
+    !directoryLoading &&
+    !loadingSessions &&
+    !websites.loading &&
+    !inboxFailed &&
+    !error &&
+    !websites.failed;
   const navigationStatus: readonly AppStatusItem[] = desktop
     ? [
         {
@@ -901,13 +915,19 @@ function ConnectedInbox({
           expanded: agentRailOpen,
           title: agentRailOpen ? "Hide Agents" : "Show Agents",
         },
-        {
-          kind: "button",
-          id: "conversations",
-          text: "Conversations",
-          expanded: listRailOpen,
-          title: listRailOpen ? "Hide conversations" : "Show conversations",
-        },
+        ...(emptyModelSetup
+          ? []
+          : [
+              {
+                kind: "button" as const,
+                id: "conversations",
+                text: "Conversations",
+                expanded: listRailOpen,
+                title: listRailOpen
+                  ? "Hide conversations"
+                  : "Show conversations",
+              },
+            ]),
       ]
     : [
         {
@@ -974,7 +994,6 @@ function ConnectedInbox({
     connection,
     facetAgent?.agentId ?? null,
   );
-  const listed = listedInboxRows(view).length;
 
   // With an Agent present and nothing to pick up, open a conversation with it: the
   // composer is the first thing on screen, and Grove open → type → Enter sends.
@@ -1217,211 +1236,216 @@ function ConnectedInbox({
             openCreation("agent");
           }}
         />
-        <aside
-          id="grove-list-rail"
-          className={`inbox-sidebar group relative min-h-0 min-w-0 flex-1 flex-col border-r border-base-300 min-[900px]:w-[var(--grove-list-width)] min-[900px]:flex-none ${listRailOpen ? "flex" : "flex min-[900px]:hidden"}`}
-          style={listWidthStyle}
-          aria-label="Conversations"
-        >
-          {desktop ? (
-            <ResizeHandle
-              aria-label="Conversation list width"
-              aria-controls="grove-list-rail"
-              className="absolute right-0 top-1/2 z-10 translate-x-1/2 -translate-y-1/2"
-              orientation="vertical"
-              value={listWidth}
-              min={listWidthBounds.min}
-              max={listWidthBounds.max}
-              onValueChange={(width) => {
-                setListWidth(() => width);
-              }}
-              onDoubleClick={() => {
-                setListWidth(() => listWidthBounds.initial);
-              }}
-              {...listResize}
-            />
-          ) : null}
-          <header className="inbox-header flex h-10 flex-none items-center gap-1 border-b border-base-300 pl-3 pr-1">
-            {facetAgent ? (
-              <AgentAvatarControl
-                key={facetAgent.agentId}
-                agentId={facetAgent.agentId}
-                name={agentLabel(facetAgent)}
-                avatar={facetAgent.avatar}
-                {...(canSetAgentAvatar ? { setAvatar: setAgentAvatar } : {})}
-              />
-            ) : null}
-            <DataListHeading className="min-w-0 flex-1 truncate">
-              {websitesOnly && websites.canRead
-                ? "Websites"
-                : facetAgent
-                  ? agentLabel(facetAgent)
-                  : "All Agents"}
-            </DataListHeading>
-            {renameTarget && canRenameAgent ? (
-              <RenameAgentControl
-                key={renameTarget.agentId}
-                agentId={renameTarget.agentId}
-                name={renameTarget.name}
-                rename={renameAgent}
-              />
-            ) : null}
-            {connection && (canStart || canCreateAgent) ? (
-              <IconButton
-                aria-label="New conversation"
-                aria-haspopup="dialog"
-                icon={<SquarePen />}
-                iconSize="sm"
-                size="sm"
-                onClick={() => {
-                  openCreation("session");
-                }}
-              />
-            ) : null}
-          </header>
-          {facetAgent && toolPolicy.canRead ? (
-            <AllowAppToolsControl
-              status={toolPolicy.status.data}
-              approving={toolPolicy.approve.isPending}
-              onApprove={approveAgentTools}
-            />
-          ) : null}
-          {agentNotice ? (
-            <Alert
-              tone="info"
-              title={agentNotice}
-              action={
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    void connection?.ui
-                      .requestAppPermissions({ agents: conversationAccess })
-                      .catch((cause: unknown) => {
-                        console.error(
-                          "Chat inbox or permission request failed",
-                          cause,
-                        );
-                      });
-                  }}
-                >
-                  Allow conversation access
-                </Button>
-              }
-            />
-          ) : null}
-          {connection && agents.length > 0 && !canStart && !canCreateAgent ? (
-            <section
-              className="inbox-create inbox-access flex flex-col items-start gap-3 border-b border-base-300 py-2"
-              aria-labelledby="inbox-agent-access-title"
-            >
-              <CardTitle
-                level={2}
-                id="inbox-agent-access-title"
-                className="inbox-access-title m-0"
-              >
-                Let Grove manage your Agents
-              </CardTitle>
-              <p>
-                Grove creates Agents and carries their conversations. Your Team
-                decides what it may do.
-              </p>
-              <Button size="sm" onClick={requestAgentAccess}>
-                Allow Agent access
-              </Button>
-            </section>
-          ) : null}
-          {deleteMutation.error ? (
-            <Alert tone="error" title={deleteMutation.error.message} />
-          ) : null}
-          {error ? (
-            <Alert
-              className="inbox-error"
-              tone="error"
-              title={error}
-              action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    void directory.refetch();
-                  }}
-                >
-                  Try again
-                </Button>
-              }
-            />
-          ) : null}
-          {inboxFailed ? (
-            <Alert
-              className="inbox-error"
-              tone="error"
-              title="Conversations are unavailable."
-              action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    inbox.refresh();
-                  }}
-                >
-                  Retry conversations
-                </Button>
-              }
-            />
-          ) : null}
-          <ScrollArea
-            key={agentFilterId}
-            ref={listViewport}
-            className="inbox-surface min-h-0 flex-1"
+        {emptyModelSetup ? null : (
+          <aside
+            id="grove-list-rail"
+            className={`inbox-sidebar group relative min-h-0 min-w-0 flex-1 flex-col border-r border-base-300 min-[900px]:w-[var(--grove-list-width)] min-[900px]:flex-none ${listRailOpen ? "flex" : "flex min-[900px]:hidden"}`}
+            style={listWidthStyle}
             aria-label="Conversations"
           >
-            {!connection ? (
-              <p className="inbox-empty m-0 px-2 py-3 text-sm text-(--stipe-fg-muted)">
-                Connect to the host to browse Agents.
-              </p>
-            ) : directoryLoading ? (
-              <p
-                className="inbox-empty m-0 px-2 py-3 text-sm text-(--stipe-fg-muted)"
-                role="status"
-              >
-                Loading Agents…
-              </p>
-            ) : (
-              <InboxList
-                viewport={listViewport}
-                view={view}
-                agents={agentById}
-                loading={loadingSessions || websites.loading}
-                failed={!!error || inboxFailed || websites.failed}
-                showEmptyState={!modelsMissing}
-                pendingSelection={pendingSelection}
-                selectedAgentId={selectedAgentId}
-                selectedSessionId={selectedSessionId}
-                onSelect={openListRow}
-                onDelete={
-                  canWriteAgent
-                    ? (agentId, sessionId) => {
-                        deleteMutation.mutate({ agentId, sessionId });
-                      }
-                    : undefined
-                }
-                deleting={
-                  deleteMutation.isPending ? deleteMutation.variables : null
-                }
-                websites={websites.rows.filter(
-                  (row) =>
-                    agentFilterId === null || row.agentId === agentFilterId,
-                )}
-                selectedWebsite={websites.selected}
-                onSelectWebsite={(row) => {
-                  conversationOpener?.clear();
-                  setNavOpen(false);
-                  websites.select(row);
+            {desktop ? (
+              <ResizeHandle
+                aria-label="Conversation list width"
+                aria-controls="grove-list-rail"
+                className="absolute right-0 top-1/2 z-10 translate-x-1/2 -translate-y-1/2"
+                orientation="vertical"
+                value={listWidth}
+                min={listWidthBounds.min}
+                max={listWidthBounds.max}
+                onValueChange={(width) => {
+                  setListWidth(() => width);
                 }}
+                onDoubleClick={() => {
+                  setListWidth(() => listWidthBounds.initial);
+                }}
+                {...listResize}
               />
-            )}
-          </ScrollArea>
-        </aside>
+            ) : null}
+            <header className="inbox-header flex h-10 flex-none items-center gap-1 border-b border-base-300 pl-3 pr-1">
+              {facetAgent ? (
+                <AgentAvatarControl
+                  key={facetAgent.agentId}
+                  agentId={facetAgent.agentId}
+                  name={agentLabel(facetAgent)}
+                  avatar={facetAgent.avatar}
+                  {...(canSetAgentAvatar ? { setAvatar: setAgentAvatar } : {})}
+                />
+              ) : null}
+              <CardTitle
+                level={2}
+                className="m-0 min-w-0 flex-1 truncate text-sm"
+              >
+                {websitesOnly && websites.canRead
+                  ? "Websites"
+                  : facetAgent
+                    ? agentLabel(facetAgent)
+                    : "All agents"}
+              </CardTitle>
+              {renameTarget && canRenameAgent ? (
+                <RenameAgentControl
+                  key={renameTarget.agentId}
+                  agentId={renameTarget.agentId}
+                  name={renameTarget.name}
+                  rename={renameAgent}
+                />
+              ) : null}
+              {connection && (canStart || canCreateAgent) ? (
+                <IconButton
+                  aria-label="New conversation"
+                  aria-haspopup="dialog"
+                  icon={<SquarePen />}
+                  iconSize="sm"
+                  size="sm"
+                  onClick={() => {
+                    openCreation("session");
+                  }}
+                />
+              ) : null}
+            </header>
+            {facetAgent && toolPolicy.canRead ? (
+              <AllowAppToolsControl
+                status={toolPolicy.status.data}
+                approving={toolPolicy.approve.isPending}
+                onApprove={approveAgentTools}
+              />
+            ) : null}
+            {agentNotice ? (
+              <Alert
+                tone="info"
+                title={agentNotice}
+                action={
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      void connection?.ui
+                        .requestAppPermissions({ agents: conversationAccess })
+                        .catch((cause: unknown) => {
+                          console.error(
+                            "Chat inbox or permission request failed",
+                            cause,
+                          );
+                        });
+                    }}
+                  >
+                    Allow conversation access
+                  </Button>
+                }
+              />
+            ) : null}
+            {connection && agents.length > 0 && !canStart && !canCreateAgent ? (
+              <section
+                className="inbox-create inbox-access flex flex-col items-start gap-3 border-b border-base-300 py-2"
+                aria-labelledby="inbox-agent-access-title"
+              >
+                <CardTitle
+                  level={2}
+                  id="inbox-agent-access-title"
+                  className="inbox-access-title m-0"
+                >
+                  Let Grove manage your Agents
+                </CardTitle>
+                <p>
+                  Grove creates Agents and carries their conversations. Your
+                  Team decides what it may do.
+                </p>
+                <Button size="sm" onClick={requestAgentAccess}>
+                  Allow Agent access
+                </Button>
+              </section>
+            ) : null}
+            {deleteMutation.error ? (
+              <Alert tone="error" title={deleteMutation.error.message} />
+            ) : null}
+            {error ? (
+              <Alert
+                className="inbox-error"
+                tone="error"
+                title={error}
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      void directory.refetch();
+                    }}
+                  >
+                    Try again
+                  </Button>
+                }
+              />
+            ) : null}
+            {inboxFailed ? (
+              <Alert
+                className="inbox-error"
+                tone="error"
+                title="Conversations are unavailable."
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      inbox.refresh();
+                    }}
+                  >
+                    Retry conversations
+                  </Button>
+                }
+              />
+            ) : null}
+            <ScrollArea
+              key={agentFilterId}
+              ref={listViewport}
+              className="inbox-surface min-h-0 flex-1"
+              aria-label="Conversations"
+            >
+              {!connection ? (
+                <p className="inbox-empty m-0 px-2 py-3 text-sm text-(--stipe-fg-muted)">
+                  Connect to the host to browse Agents.
+                </p>
+              ) : directoryLoading ? (
+                <p
+                  className="inbox-empty m-0 px-2 py-3 text-sm text-(--stipe-fg-muted)"
+                  role="status"
+                >
+                  Loading Agents…
+                </p>
+              ) : (
+                <InboxList
+                  viewport={listViewport}
+                  view={view}
+                  agents={agentById}
+                  loading={loadingSessions || websites.loading}
+                  failed={!!error || inboxFailed || websites.failed}
+                  showEmptyState={!modelsMissing}
+                  pendingSelection={pendingSelection}
+                  selectedAgentId={selectedAgentId}
+                  selectedSessionId={selectedSessionId}
+                  onSelect={openListRow}
+                  onDelete={
+                    canWriteAgent
+                      ? (agentId, sessionId) => {
+                          deleteMutation.mutate({ agentId, sessionId });
+                        }
+                      : undefined
+                  }
+                  deleting={
+                    deleteMutation.isPending ? deleteMutation.variables : null
+                  }
+                  websites={websites.rows.filter(
+                    (row) =>
+                      agentFilterId === null || row.agentId === agentFilterId,
+                  )}
+                  selectedWebsite={websites.selected}
+                  onSelectWebsite={(row) => {
+                    conversationOpener?.clear();
+                    setNavOpen(false);
+                    websites.select(row);
+                  }}
+                />
+              )}
+            </ScrollArea>
+          </aside>
+        )}
       </NavigationRails>
       <section
         className="inbox-conversation-shell flex min-h-0 min-w-0 flex-1 flex-col"
@@ -1501,7 +1525,7 @@ function ConnectedInbox({
         ) : modelsMissing ? (
           <SetupNotice
             className="inbox-empty m-auto max-w-[28rem]"
-            cause="Chat, write and make little games with Agents. Connect a model to begin."
+            cause="Add a model key so your Agents can reply."
             visual={
               <ShiitakeAvatar
                 state={{ activity: "idle", expression: "normal" }}

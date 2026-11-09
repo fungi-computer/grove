@@ -295,7 +295,7 @@ export function InboxList({
                   />
                 ) : (
                   <p className="m-0 px-2 py-3 text-xs text-(--stipe-fg-muted)">
-                    No conversations yet.
+                    Conversations you start with Agents appear here.
                   </p>
                 )
               ) : row.kind === "website" ? (

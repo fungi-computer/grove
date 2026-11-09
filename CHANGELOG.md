@@ -1,5 +1,13 @@
 # @fungi.computer/grove
 
+## 0.10.9
+
+### Patch Changes
+
+- Changes since 0.10.8:
+
+  - fix(grove): give empty model setup the conversation space
+
 ## 0.10.8
 
 ### Patch Changes
