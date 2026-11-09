@@ -332,7 +332,7 @@ export const ReturnVisitNoModel = () => <Workbench models="missing" />;
 export const FirstRunStarters = () => (
   <Workbench scenario="empty" models="ready" />
 );
-/** Inside a conversation with no model: connect-a-model panel, composer says why. */
+/** Inside a conversation with no model: one central setup panel replaces sending. */
 export const ConversationNoModel = () => (
   <Workbench
     scenario="conversation-empty"
@@ -340,6 +340,21 @@ export const ConversationNoModel = () => (
     openRequest={{
       kind: "navigate",
       requestId: "grove-conversation-empty",
+      params: [
+        { key: "agent", value: "gardener" },
+        { key: "session", value: "gardener-1" },
+      ],
+    }}
+  />
+);
+
+/** Losing a model keeps saved conversation history and one setup action. */
+export const ConversationHistoryNoModel = () => (
+  <Workbench
+    models="missing"
+    openRequest={{
+      kind: "navigate",
+      requestId: "grove-history-no-model",
       params: [
         { key: "agent", value: "gardener" },
         { key: "session", value: "gardener-1" },
