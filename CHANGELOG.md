@@ -1,5 +1,13 @@
 # @fungi.computer/grove
 
+## 0.10.4
+
+### Patch Changes
+
+- Changes since 0.10.3:
+
+  - fix(grove): keep model setup visible when returning to conversations
+
 ## 0.10.3
 
 ### Patch Changes

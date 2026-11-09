@@ -18,6 +18,7 @@ import type { WebsiteInboxRow } from "./website-inbox.js";
 import {
   agentLabel,
   inboxStatusCopy,
+  listedInboxRows,
   isInPlay,
   orderInbox,
   sessionKey,
@@ -46,14 +47,12 @@ function flatten(
   websites: readonly WebsiteInboxRow[],
   loading: boolean,
   failed: boolean,
+  showEmptyState: boolean,
 ): Row[] {
   const rows: Row[] = [];
   if (loading) rows.push({ kind: "hint", key: "loading", loading: true });
   let groups = 0;
-  // A conversation with no first message has nothing to list yet.
-  const live = [...view.active, ...view.settled].filter(
-    (row) => !(row.title === "" && row.ready),
-  );
+  const live = listedInboxRows(view);
   const byKey = new Map(
     live.map((row) => [sessionKey(row.agentId, row.sessionId), row]),
   );
@@ -107,7 +106,7 @@ function flatten(
         website,
       });
   }
-  if (rows.length === 0 && !failed)
+  if (rows.length === 0 && !failed && showEmptyState)
     rows.push({ kind: "hint", key: "empty", loading: false });
   return rows;
 }
@@ -118,6 +117,7 @@ export function InboxList({
   agents,
   loading,
   failed,
+  showEmptyState,
   pendingSelection,
   selectedAgentId,
   selectedSessionId,
@@ -133,6 +133,7 @@ export function InboxList({
   agents: ReadonlyMap<string, AppAgent>;
   loading: boolean;
   failed: boolean;
+  showEmptyState: boolean;
   pendingSelection: PendingSelection | null;
   selectedAgentId: string | null;
   selectedSessionId: string | null;
@@ -201,8 +202,8 @@ export function InboxList({
     };
   }, [viewport]);
   const rows = useMemo(
-    () => flatten(view, placements, websites, loading, failed),
-    [view, placements, websites, loading, failed],
+    () => flatten(view, placements, websites, loading, failed, showEmptyState),
+    [view, placements, websites, loading, failed, showEmptyState],
   );
   const getItemKey = useCallback(
     (index: number) => rows[index]?.key ?? index,

@@ -5,7 +5,11 @@ import {
   memberInboxItemSchema,
   memberInboxKey,
 } from "@fungi.computer/agar/inbox";
-import { buildInboxSessionView, inboxStatusCopy } from "../src/inbox-model.js";
+import {
+  buildInboxSessionView,
+  inboxStatusCopy,
+  listedInboxRows,
+} from "../src/inbox-model.js";
 
 const page = Schema.Struct({
   items: Schema.Array(memberInboxItemSchema).check(Schema.isMaxLength(200)),
@@ -33,10 +37,7 @@ export const inboxGill = defineAppGill({
       output,
     );
     const view = buildInboxSessionView(data.items);
-    // A conversation with no first message has nothing to list yet.
-    const listed = [...view.active, ...view.settled].filter(
-      (item) => !(item.title === "" && item.ready),
-    );
+    const listed = listedInboxRows(view);
     if (listed.length === 0 && view.unavailable.length > 0)
       return {
         viewId: "inbox",

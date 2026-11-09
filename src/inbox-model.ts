@@ -302,6 +302,13 @@ export function buildInboxSessionView(
   };
 }
 
+/** Untouched conversations keep their ordering slot but have nothing to list. */
+export function listedInboxRows(view: InboxView): readonly InboxRow[] {
+  return [...view.active, ...view.settled].filter(
+    (row) => !(row.title === "" && row.ready),
+  );
+}
+
 export function sessionKey(agentId: string, sessionId: string): string {
   return `${agentId}\u0000${sessionId}`;
 }

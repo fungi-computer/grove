@@ -326,6 +326,8 @@ export const FirstRunNoModel = () => (
 export const AgentNoModel = () => (
   <Workbench scenario="empty" models="missing" />
 );
+/** Returning with saved conversations still requires model setup. */
+export const ReturnVisitNoModel = () => <Workbench models="missing" />;
 /** A model is connected: three starters that send. */
 export const FirstRunStarters = () => (
   <Workbench scenario="empty" models="ready" />

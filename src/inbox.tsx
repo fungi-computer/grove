@@ -17,6 +17,7 @@ import {
 import {
   agentLabel,
   buildInboxView,
+  listedInboxRows,
   type InboxOpenSessionState,
 } from "./inbox-model.js";
 import {
@@ -973,7 +974,7 @@ function ConnectedInbox({
     connection,
     facetAgent?.agentId ?? null,
   );
-  const listed = view.active.length + view.settled.length;
+  const listed = listedInboxRows(view).length;
 
   // With an Agent present and nothing to pick up, open a conversation with it: the
   // composer is the first thing on screen, and Grove open → type → Enter sends.
@@ -1392,6 +1393,7 @@ function ConnectedInbox({
                 agents={agentById}
                 loading={loadingSessions || websites.loading}
                 failed={!!error || inboxFailed || websites.failed}
+                showEmptyState={!modelsMissing}
                 pendingSelection={pendingSelection}
                 selectedAgentId={selectedAgentId}
                 selectedSessionId={selectedSessionId}
@@ -1496,21 +1498,21 @@ function ConnectedInbox({
               )
             }
           />
+        ) : modelsMissing ? (
+          <SetupNotice
+            className="inbox-empty m-auto max-w-[28rem]"
+            cause="Chat, write and make little games with Agents. Connect a model to begin."
+            visual={
+              <ShiitakeAvatar
+                state={{ activity: "idle", expression: "normal" }}
+              />
+            }
+            fix={{ label: "Add a model key", onSelect: openModelSetup }}
+            need="Connect a model to start chatting"
+            variant="panel"
+          />
         ) : (
-          (startFailureNotice ??
-          (modelsMissing && listed === 0 ? (
-            <SetupNotice
-              className="inbox-empty m-auto max-w-[28rem]"
-              cause={
-                startAgent
-                  ? `${agentLabel(startAgent)} answers with a model, and none is connected yet.`
-                  : "Agents answer with a model, and none is connected yet."
-              }
-              fix={{ label: "Add a model key", onSelect: openModelSetup }}
-              need="Connect a model to start chatting"
-              variant="panel"
-            />
-          ) : (
+          (startFailureNotice ?? (
             <EmptyState
               className="inbox-empty m-auto max-w-[28rem]"
               variant="panel"
@@ -1565,7 +1567,7 @@ function ConnectedInbox({
                 </>
               }
             />
-          )))
+          ))
         )}
       </section>
       {besideConversation === null ? null : (
