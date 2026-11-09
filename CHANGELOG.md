@@ -1,5 +1,13 @@
 # @fungi.computer/grove
 
+## 0.10.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/maosaico@0.1.2
+  - @fungi.computer/caps@0.10.1
+
 ## 0.10.4
 
 ### Patch Changes
