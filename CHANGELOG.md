@@ -1,5 +1,14 @@
 # @fungi.computer/grove
 
+## 0.10.10
+
+### Patch Changes
+
+- Changes since 0.10.9:
+
+  - fix(apps): pass typed checks and record the next release notes
+  - fix(apps): complete Tourtois and Grove first-run guidance
+
 ## 0.10.9
 
 ### Patch Changes

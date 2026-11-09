@@ -85,7 +85,7 @@ import { SquarePen } from "lucide-react";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
-import { SetupNotice } from "@fungi.computer/caps/blocks/setup-notice";
+import { ModelSetup } from "./model-setup.js";
 import { starterPrompts } from "./starters.js";
 import { InboxList } from "./inbox-list.js";
 import { useWebsiteInbox } from "./website-inbox.js";
@@ -469,11 +469,6 @@ function ConnectedInbox({
   const appContext = useAppContext(connection);
   const openRequest = appContext?.openRequest ?? null;
   const modelsMissing = appContext?.setup?.models === "missing";
-  const openModelSetup = useCallback(() => {
-    void connection?.ui.openSetup("model").catch((cause: unknown) => {
-      console.error("Grove could not open model setup", cause);
-    });
-  }, [connection]);
   const handledOpenRequestId = useRef<string | null>(null);
   const conversationOpener = useMemo(
     () =>
@@ -1403,12 +1398,7 @@ function ConnectedInbox({
                   Connect to the host to browse Agents.
                 </p>
               ) : directoryLoading ? (
-                <p
-                  className="inbox-empty m-0 px-2 py-3 text-sm text-(--stipe-fg-muted)"
-                  role="status"
-                >
-                  Loading Agents…
-                </p>
+                <LoadingState framed={false} message="Loading Agents…" />
               ) : (
                 <InboxList
                   viewport={listViewport}
@@ -1479,8 +1469,15 @@ function ConnectedInbox({
             models={appContext?.setup?.models}
             autoFocus={desktop}
           />
-        ) : !connection || directoryLoading ? null : agents.length === 0 &&
-          !error ? (
+        ) : !connection || directoryLoading ? (
+          <LoadingState
+            className="m-auto"
+            framed={false}
+            message={connection ? "Loading Agents…" : "Connecting to Oyster…"}
+          />
+        ) : modelsMissing && (agents.length > 0 || canCreateAgent) ? (
+          <ModelSetup connection={connection} />
+        ) : agents.length === 0 && !error ? (
           <EmptyState
             className="inbox-empty m-auto max-w-[28rem]"
             variant="speech"
@@ -1498,18 +1495,16 @@ function ConnectedInbox({
                 }}
               />
             )}
-            title={canCreateAgent ? "No one's here yet." : "Welcome to Grove"}
+            title={
+              canCreateAgent ? "Meet your first Agent" : "Welcome to Grove"
+            }
             description={
-              canCreateAgent && modelsMissing
-                ? "Agents chat, write and make little games with you. Connect a model to start chatting."
-                : canCreateAgent
-                  ? "Agents chat, write and make little games with you. Name someone?"
-                  : "Let Grove find your Agents, create new ones, and open conversations. Your Team controls this access."
+              canCreateAgent
+                ? "An Agent is an AI helper. Name one to chat, write and make things together."
+                : "Let Grove find your AI helpers, create new ones, and open conversations. Your Team controls this access."
             }
             actions={
-              canCreateAgent && modelsMissing ? (
-                <Button onClick={openModelSetup}>Add a model key</Button>
-              ) : canCreateAgent ? (
+              canCreateAgent ? (
                 <Button
                   onClick={() => {
                     openCreation("agent");
@@ -1521,19 +1516,6 @@ function ConnectedInbox({
                 <Button onClick={requestAgentAccess}>Allow Agent access</Button>
               )
             }
-          />
-        ) : modelsMissing ? (
-          <SetupNotice
-            className="inbox-empty m-auto max-w-[28rem]"
-            cause="Add a model key so your Agents can reply."
-            visual={
-              <ShiitakeAvatar
-                state={{ activity: "idle", expression: "normal" }}
-              />
-            }
-            fix={{ label: "Add a model key", onSelect: openModelSetup }}
-            need="Connect a model to start chatting"
-            variant="panel"
           />
         ) : (
           (startFailureNotice ?? (
@@ -1549,7 +1531,7 @@ function ConnectedInbox({
               }
               description={
                 listed > 0
-                  ? "Choose one from the list, or ask for something new. A tiny game is a good start."
+                  ? "Choose one from the list, or ask for something new. A short writing task is a good start."
                   : "Ask for anything. Pick one to start."
               }
               suggestions={

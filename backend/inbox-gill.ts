@@ -80,7 +80,8 @@ export const inboxGill = defineAppGill({
           state: "empty",
           rows: [],
           emptyText:
-            "Talk to Agents in Grove. Your conversations will appear here.",
+            "Start a conversation in Grove. Keep up with replies here.",
+          action: { kind: "open" },
           ...continuation,
         }
       : {
