@@ -1,5 +1,14 @@
 # @fungi.computer/grove
 
+## 0.10.8
+
+### Patch Changes
+
+- Changes since 0.10.7:
+
+  - fix(grove): leave the welcome as the desktop primary action
+  - fix(grove): explain the empty desktop inbox
+
 ## 0.10.7
 
 ### Patch Changes

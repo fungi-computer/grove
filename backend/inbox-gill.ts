@@ -79,6 +79,8 @@ export const inboxGill = defineAppGill({
           title: "Inbox",
           state: "empty",
           rows: [],
+          emptyText:
+            "Talk to Agents in Grove. Your conversations will appear here.",
           ...continuation,
         }
       : {
