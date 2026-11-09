@@ -1,5 +1,12 @@
 # @fungi.computer/grove
 
+## 0.10.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/parakeet@0.11.3
+
 ## 0.10.2
 
 ### Patch Changes
