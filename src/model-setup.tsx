@@ -23,16 +23,16 @@ export function ModelSetup({ connection }: { connection: AppRoot }) {
   };
   return (
     <section
-      className="inbox-empty mx-auto flex w-full max-w-3xl flex-col gap-lg overflow-y-auto px-lg py-xl sm:py-3xl"
+      className="inbox-empty mx-auto flex w-full max-w-2xl flex-col gap-xl overflow-y-auto px-lg py-xl"
       aria-label="Get started with Grove"
     >
       <EmptyState
-        variant="plain"
+        variant="quiet"
         title="Make something together"
         description="An Agent is an AI helper. Chat in Grove to write, think through ideas, and work with your Apps."
         visual={
           <ShiitakeAvatar
-            className="size-20"
+            className="size-12"
             state={{ activity: "idle", expression: "normal" }}
           />
         }
@@ -58,7 +58,7 @@ export function ModelSetup({ connection }: { connection: AppRoot }) {
           }}
         />
       ) : null}
-      <ol className="m-0 grid list-none gap-lg p-0 text-sm sm:grid-cols-3">
+      <ol className="m-0 grid list-none gap-lg p-0 text-sm">
         <li className="flex flex-col gap-xs">
           <strong className="font-semibold">1. Add your key</strong>
           <span className="text-(--stipe-fg-muted)">

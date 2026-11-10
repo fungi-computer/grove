@@ -1,5 +1,13 @@
 # @fungi.computer/grove
 
+## 0.10.16
+
+### Patch Changes
+
+- Changes since 0.10.15:
+
+  - fix(grove): offer supported model choices and clarify setup
+
 ## 0.10.15
 
 ### Patch Changes
