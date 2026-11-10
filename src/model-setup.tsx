@@ -39,7 +39,7 @@ export function ModelSetup({ connection }: { connection: AppRoot }) {
       />
       <SetupNotice
         need="Connect a model to start chatting"
-        cause="A model powers your Agent’s replies. Bring a key from Anthropic, OpenAI or OpenRouter."
+        cause="A model powers your Agent’s replies. Connect Cloudflare Workers AI or bring a key from your model provider."
         fix={{
           label: opening ? "Opening Model keys…" : "Add a model key",
           onSelect: () => void open(),

@@ -1,5 +1,15 @@
 # @fungi.computer/grove
 
+## 0.10.14
+
+### Patch Changes
+
+- Changes since 0.10.13:
+
+  - fix(grove): keep Billing action callback explicit
+  - fix(ui): clarify App access and unfunded Agent setup
+  - fix(oyster): connect Cloudflare model keys from Settings
+
 ## 0.10.13
 
 ### Patch Changes

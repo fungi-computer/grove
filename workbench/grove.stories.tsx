@@ -26,6 +26,7 @@ function Workbench({
   openRequest = null,
   unavailableSessionIds = [],
   models,
+  openBilling,
 }: {
   scenario?: GroveScenario;
   narrow?: boolean;
@@ -33,9 +34,16 @@ function Workbench({
   unavailableSessionIds?: readonly string[];
   /** The host's setup fact; omit for a host that does not say. */
   models?: SetupState;
+  openBilling?: () => Promise<void>;
 }) {
   const [fixture] = useState(() =>
-    createGroveFixture(scenario, openRequest, unavailableSessionIds, models),
+    createGroveFixture(
+      scenario,
+      openRequest,
+      unavailableSessionIds,
+      models,
+      openBilling,
+    ),
   );
   const { status, bar } = useWorkbenchStatusBar();
   const connection = useMemo(
@@ -362,3 +370,20 @@ export const ConversationHistoryNoModel = () => (
     }}
   />
 );
+
+/** A real funding refusal keeps the creation draft and delegates Billing to its host. */
+export function UnfundedTeam() {
+  const [opened, setOpened] = useState(false);
+  return (
+    <>
+      <Workbench
+        scenario="unfunded"
+        openBilling={() => {
+          setOpened(true);
+          return Promise.resolve();
+        }}
+      />
+      {opened ? <p role="status">Billing opened</p> : null}
+    </>
+  );
+}

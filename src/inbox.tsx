@@ -1,3 +1,4 @@
+import { AppError } from "@fungi.computer/agar";
 import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import { Alert } from "@fungi.computer/caps/components/alert";
 import { CardTitle } from "@fungi.computer/caps/components/card";
@@ -1160,6 +1161,12 @@ function ConnectedInbox({
             open={creation === "agent"}
             pending={creatingAgent}
             error={agentCreationError}
+            addCredit={
+              createAgentMutation.error instanceof AppError &&
+              createAgentMutation.error.code === "INSUFFICIENT_CREDIT"
+                ? () => connection.ui.openTeamBilling()
+                : null
+            }
             computers={
               computerChoices.isError
                 ? {

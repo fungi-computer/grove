@@ -16,6 +16,7 @@ export function CreateAgentDialog({
   open,
   pending,
   error,
+  addCredit,
   computers,
   create,
   onClose,
@@ -24,6 +25,7 @@ export function CreateAgentDialog({
   open: boolean;
   pending: boolean;
   error: string | null;
+  addCredit: (() => Promise<void>) | null;
   /**
    * The Team's Computers for the picker: loading, offered (newest first),
    * not offered by this host, or unreadable.
@@ -54,7 +56,7 @@ export function CreateAgentDialog({
         <DialogHeader>
           <DialogTitle>New Agent</DialogTitle>
           <DialogDescription>
-            Agents chat, write and make little games with you.
+            Agents chat, write and work with you.
           </DialogDescription>
         </DialogHeader>
         {computers.status === "loading" ? (
@@ -74,6 +76,7 @@ export function CreateAgentDialog({
             }
             inputRef={input}
             error={error}
+            addCredit={addCredit}
             onCancel={onClose}
           />
         )}

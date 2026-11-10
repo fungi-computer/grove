@@ -1,6 +1,7 @@
 import type { SetupState } from "@fungi.computer/agar";
 import { seededAvatar } from "@fungi.computer/sprite/avatar";
 import {
+  AppError,
   inertHostNavigation,
   createCapabilityRegistry,
   type AppOpenRequest,
@@ -129,6 +130,7 @@ export type GroveScenario =
   | "start-failed-open"
   | "empty"
   | "no-agents"
+  | "unfunded"
   | "no-agent-access"
   | "loading"
   | "unavailable"
@@ -1115,6 +1117,7 @@ export function createGroveFixture(
   openRequest: AppOpenRequest | null = null,
   unavailableSessionIds: readonly string[] = [],
   models?: SetupState,
+  openBilling: () => Promise<void> = () => Promise.resolve(),
 ) {
   const appContext = store({
     computerId: null,
@@ -1264,7 +1267,7 @@ export function createGroveFixture(
       reportStatus: () => Promise.resolve(),
       onStatusAction: () => () => undefined,
       requestAppPermissions: () => Promise.resolve("declined" as const),
-      openTeamBilling: () => Promise.resolve(),
+      openTeamBilling: openBilling,
       requestComputerChoice: () => Promise.reject(new Error("No picker")),
       requestBrowserAction: () => {
         throw new Error("Unexpected browser action");
@@ -1395,6 +1398,7 @@ export function createGroveFixture(
   };
   const noAgents =
     scenario === "no-agents" ||
+    scenario === "unfunded" ||
     scenario === "no-agent-access" ||
     scenario === "safety-notice" ||
     scenario === "seller-closed";
@@ -1471,6 +1475,13 @@ export function createGroveFixture(
           },
         ]),
       create: ({ name, avatar }) => {
+        if (scenario === "unfunded")
+          return Promise.reject(
+            new AppError(
+              "Add credit to this Team in Billing to create Agents and Computers.",
+              { code: "INSUFFICIENT_CREDIT", retryable: false },
+            ),
+          );
         const agent = {
           agentId: `created-${String(createdAgents.length + 1)}`,
           name,

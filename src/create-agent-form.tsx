@@ -1,3 +1,5 @@
+import { useMutation } from "@tanstack/react-query";
+import { SetupNotice } from "@fungi.computer/caps/blocks/setup-notice";
 import type {
   AppAgentComputer,
   AppAgentComputerChoice,
@@ -70,6 +72,7 @@ export function CreateAgentForm({
   computersUnavailable,
   inputRef,
   error,
+  addCredit,
   onCancel,
 }: {
   create: (intent: AppAgentCreateInput) => Promise<boolean>;
@@ -79,6 +82,7 @@ export function CreateAgentForm({
   computersUnavailable: string | null;
   inputRef?: Ref<HTMLInputElement>;
   error: string | null;
+  addCredit: (() => Promise<void>) | null;
   onCancel: () => void;
 }) {
   const intent = useRef<AppAgentCreateInput | null>(null);
@@ -173,7 +177,7 @@ export function CreateAgentForm({
       layout="columns"
       aria-label="Create Agent"
       footer={
-        <FormFooter divider={false} error={error}>
+        <FormFooter divider={false} error={addCredit === null ? error : null}>
           <Button
             type="button"
             variant="ghost"
@@ -212,6 +216,9 @@ export function CreateAgentForm({
           intent.current = null;
       }}
     >
+      {addCredit === null ? null : (
+        <AgentCreditNotice openBilling={addCredit} />
+      )}
       <FormFields
         model={model}
         names={canChooseComputer && moreOpen ? ["name", "computer"] : ["name"]}
@@ -227,5 +234,33 @@ export function CreateAgentForm({
         />
       ) : null}
     </SchemaForm>
+  );
+}
+
+/** The host owns Billing; a refusal keeps this form and its draft mounted. */
+function AgentCreditNotice({
+  openBilling,
+}: {
+  openBilling: () => Promise<void>;
+}) {
+  const billing = useMutation({ mutationFn: openBilling });
+  return (
+    <SetupNotice
+      variant="inline"
+      need="Add credit to create your Agent"
+      cause={
+        billing.isError
+          ? "Billing could not open. Try again."
+          : "This Team needs credit to run Agents and Computers."
+      }
+      fix={{
+        label: billing.isError ? "Retry Billing" : "Add credit",
+        onSelect: () => {
+          billing.mutate();
+        },
+        pending: billing.isPending,
+      }}
+      waitingFor="Billing"
+    />
   );
 }
