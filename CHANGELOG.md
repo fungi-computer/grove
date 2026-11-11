@@ -1,5 +1,19 @@
 # @fungi.computer/grove
 
+## 0.10.20
+
+### Patch Changes
+
+- Changes since 0.10.19:
+
+  - fix(parakeet,grove): keep a failed edit failed when only a read follows
+  - fix(parakeet,grove): recover a tool failure only through its own retry
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/caps@0.10.6
+  - @fungi.computer/parakeet@0.11.13
+
 ## 0.10.19
 
 ### Patch Changes
