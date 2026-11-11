@@ -383,8 +383,7 @@ function previewSession(
               commandId,
               outcome: "failed",
               sequence: 2,
-              diagnostic:
-                "The image provider is unavailable. Your prompt is preserved.",
+              diagnostic: "The image provider is unavailable.",
             },
           ]
         : scenario === "conversation-interrupted"
@@ -761,7 +760,7 @@ function previewSession(
           commandId,
           outcome: "failed",
           sequence: 2,
-          diagnostic: "The worker stopped. Retry keeps the original input.",
+          diagnostic: "The worker stopped.",
         },
       ],
     };

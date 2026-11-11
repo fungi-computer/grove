@@ -1,5 +1,16 @@
 # @fungi.computer/grove
 
+## 0.10.22
+
+### Patch Changes
+
+- Changes since 0.10.21:
+
+  - fix(parakeet,grove,prints): three usability bugs
+
+- Updated dependencies
+  - @fungi.computer/parakeet@0.11.15
+
 ## 0.10.21
 
 ### Patch Changes
