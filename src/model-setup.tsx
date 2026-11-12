@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { AppRoot } from "@fungi.computer/agar";
+import { Button } from "@fungi.computer/caps/components/button";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { FailureLine } from "@fungi.computer/caps/components/failure-line";
 import { ShiitakeAvatar } from "@fungi.computer/parakeet";
@@ -21,7 +22,14 @@ const steps = [
 ] as const;
 
 /** The first conversation's purpose, prerequisite and real path back to Grove. */
-export function ModelSetup({ connection }: { connection: AppRoot }) {
+export function ModelSetup({
+  connection,
+  navigation,
+}: {
+  connection: AppRoot;
+  /** One-column Grove: the Agent list lives in a sheet, so the card offers it. */
+  navigation?: { open: boolean; onOpen: () => void };
+}) {
   const [failed, setFailed] = useState(false);
   const [opening, setOpening] = useState(false);
   const open = async () => {
@@ -59,6 +67,18 @@ export function ModelSetup({ connection }: { connection: AppRoot }) {
           pending: opening,
         }}
       />
+      {navigation ? (
+        <Button
+          variant="outline"
+          className="self-center"
+          aria-haspopup="dialog"
+          aria-controls="grove-nav"
+          aria-expanded={navigation.open}
+          onClick={navigation.onOpen}
+        >
+          Agents and conversations
+        </Button>
+      ) : null}
       {failed ? (
         <FailureLine
           role="alert"

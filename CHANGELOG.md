@@ -1,5 +1,17 @@
 # @fungi.computer/grove
 
+## 0.11.4
+
+### Patch Changes
+
+- Changes since 0.11.3:
+
+  - fix(grove): reach the Agent list and explain New Agent
+
+- Updated dependencies
+  - @fungi.computer/caps@0.11.3
+  - @fungi.computer/parakeet@0.11.21
+
 ## 0.11.3
 
 ### Patch Changes

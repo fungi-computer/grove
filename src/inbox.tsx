@@ -2,7 +2,7 @@ import { AppError } from "@fungi.computer/agar";
 import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import { Alert } from "@fungi.computer/caps/components/alert";
 import { CardTitle } from "@fungi.computer/caps/components/card";
-import { AgentRail } from "./agent-rail.js";
+import { AgentRail, connectModelFirst } from "./agent-rail.js";
 import { TeamNotices } from "./team-notices.js";
 import { NavigationRails, useNavigationDesktop } from "./navigation-rails.js";
 import { CreateAgentDialog } from "./create-agent-dialog.js";
@@ -1076,9 +1076,17 @@ function ConnectedInbox({
         !connection ||
         creatingAgent ||
         startingAgentId !== null ||
-        (kind === "agent" && (!canCreateAgent || modelsMissing))
+        (kind === "agent" && !canCreateAgent)
       )
         return;
+      if (kind === "agent" && modelsMissing) {
+        void connection.ui
+          .showToast({ message: connectModelFirst, tone: "info" })
+          .catch((cause: unknown) => {
+            console.error("Grove toast failed", cause);
+          });
+        return;
+      }
       // Swapping dialogs keeps the original trigger, not a field about to unmount.
       if (creation === null)
         dialogReturnFocus.current = navOpen
@@ -1515,7 +1523,14 @@ function ConnectedInbox({
             message={connection ? "Loading Agents…" : "Connecting to Oyster…"}
           />
         ) : modelsMissing && (agents.length > 0 || canCreateAgent) ? (
-          <ModelSetup connection={connection} />
+          <ModelSetup
+            connection={connection}
+            navigation={
+              desktop
+                ? undefined
+                : { open: navOpen, onOpen: openNavigationSheet }
+            }
+          />
         ) : agents.length === 0 && !error ? (
           <EmptyState
             className="inbox-empty m-auto max-w-[28rem]"

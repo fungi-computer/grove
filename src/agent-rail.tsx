@@ -2,11 +2,19 @@ import type { ReactNode } from "react";
 import type { AppAgent } from "@fungi.computer/agar/agents";
 import { Button } from "@fungi.computer/caps/components/button";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@fungi.computer/caps/components/tooltip";
 import { AgentHead, type AgentHeadActivity } from "@fungi.computer/parakeet";
 import { Sigil } from "@fungi.computer/sigils";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { agentLabel } from "./inbox-model.js";
+
+/** Why New Agent waits; the rail tooltip and the shortcut toast say the same. */
+export const connectModelFirst = "Connect a model first";
 
 function RailMark({ children }: { children: ReactNode }) {
   return (
@@ -125,20 +133,26 @@ export function AgentRail({
         </div>
       </ScrollArea>
       {canCreate ? (
-        <Button
-          variant="ghost"
-          aria-label="New Agent"
-          disabled={modelsMissing}
-          title={modelsMissing ? "Connect a model first" : undefined}
-          aria-expanded={createOpen}
-          aria-haspopup="dialog"
-          className={`${cell} mt-auto`}
-          onClick={onCreate}
-        >
-          <span className="grove-rail-mark grid size-full place-items-center">
-            <Plus size={20} />
-          </span>
-        </Button>
+        <Tooltip side="right">
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              aria-label="New Agent"
+              aria-disabled={modelsMissing}
+              aria-expanded={createOpen}
+              aria-haspopup="dialog"
+              className={`${cell} mt-auto ${modelsMissing ? "opacity-50" : ""}`}
+              onClick={onCreate}
+            >
+              <span className="grove-rail-mark grid size-full place-items-center">
+                <Plus size={20} />
+              </span>
+            </Button>
+          </TooltipTrigger>
+          {modelsMissing ? (
+            <TooltipContent>{connectModelFirst}</TooltipContent>
+          ) : null}
+        </Tooltip>
       ) : null}
     </nav>
   );
