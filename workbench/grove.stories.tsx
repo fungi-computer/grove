@@ -185,6 +185,10 @@ export const ThousandConversations = () => <Workbench scenario="thousand" />;
 export const Narrow = () => <Workbench narrow />;
 /** A third of a tiled desktop: a wide screen around a 490x330 Grove window. */
 export const Tile = () => <Workbench tile />;
+/** A tile too short for the setup steps: the setup card scrolls. */
+export const TileNoModel = () => (
+  <Workbench tile scenario="no-agents" models="missing" />
+);
 export const Loading = () => <Workbench scenario="loading" />;
 export const EmptyConversations = () => <Workbench scenario="empty" />;
 export const FailedStart = () => <Workbench scenario="start-failed" />;

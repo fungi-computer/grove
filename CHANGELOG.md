@@ -1,5 +1,18 @@
 # @fungi.computer/grove
 
+## 0.11.3
+
+### Patch Changes
+
+- Changes since 0.11.2:
+
+  - fix(grove): hold New Agent until a model is connected and scroll the setup
+    card
+
+- Updated dependencies
+  - @fungi.computer/caps@0.11.2
+  - @fungi.computer/parakeet@0.11.20
+
 ## 0.11.2
 
 ### Patch Changes

@@ -1076,7 +1076,7 @@ function ConnectedInbox({
         !connection ||
         creatingAgent ||
         startingAgentId !== null ||
-        (kind === "agent" && !canCreateAgent)
+        (kind === "agent" && (!canCreateAgent || modelsMissing))
       )
         return;
       // Swapping dialogs keeps the original trigger, not a field about to unmount.
@@ -1101,6 +1101,7 @@ function ConnectedInbox({
       creatingAgent,
       startingAgentId,
       canCreateAgent,
+      modelsMissing,
       creation,
       navOpen,
       openAgent?.agentId,
@@ -1228,6 +1229,7 @@ function ConnectedInbox({
             websitesSelected={websitesOnly}
             websitesVisible={websites.canRead}
             canCreate={connection !== null && canCreateAgent}
+            modelsMissing={modelsMissing}
             createOpen={creation === "agent"}
             onAll={() => {
               setAgentFilterId(null);

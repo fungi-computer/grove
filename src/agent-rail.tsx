@@ -25,6 +25,7 @@ export function AgentRail({
   websitesSelected,
   websitesVisible,
   canCreate,
+  modelsMissing,
   createOpen,
   onAll,
   onWebsites,
@@ -39,6 +40,8 @@ export function AgentRail({
   websitesSelected: boolean;
   websitesVisible: boolean;
   canCreate: boolean;
+  /** No model is connected yet, so a new Agent could not reply. */
+  modelsMissing: boolean;
   createOpen: boolean;
   onAll: () => void;
   onWebsites: () => void;
@@ -125,6 +128,8 @@ export function AgentRail({
         <Button
           variant="ghost"
           aria-label="New Agent"
+          disabled={modelsMissing}
+          title={modelsMissing ? "Connect a model first" : undefined}
           aria-expanded={createOpen}
           aria-haspopup="dialog"
           className={`${cell} mt-auto`}

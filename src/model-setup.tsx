@@ -38,7 +38,7 @@ export function ModelSetup({ connection }: { connection: AppRoot }) {
   };
   return (
     <section
-      className="inbox-empty @container m-auto flex w-full max-w-3xl flex-col gap-xl overflow-y-auto px-lg py-xl"
+      className="inbox-empty @container m-auto flex max-h-full min-h-0 w-full max-w-3xl flex-col gap-xl overflow-y-auto px-lg py-xl"
       aria-label="Get started with Grove"
     >
       <EmptyState
