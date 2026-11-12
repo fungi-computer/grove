@@ -53,7 +53,7 @@ export function AgentRail({
     <nav
       id="grove-agent-rail"
       aria-label="Agents"
-      className={`grove-rail min-h-0 w-16 flex-none flex-col items-center gap-1 border-r border-base-300 py-2 ${open ? "flex" : "flex min-[900px]:hidden"}`}
+      className={`grove-rail min-h-0 w-16 flex-none flex-col items-center gap-1 border-r border-base-300 py-2 ${open ? "flex" : "flex @min-[900px]/grove:hidden"}`}
     >
       <Button
         variant="ghost"

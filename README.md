@@ -20,8 +20,8 @@ where the agent calls Bonsai's `repos.list`.
 - Send a follow-up while the agent works (**Queue**), stop it (**Cancel**),
   retry a failed turn, or fork a conversation from any message.
 - Watch each tool call inline, with its script, timing and result.
-- Collapse the agent rail and the inbox, or drag the inbox wider. On a phone,
-  **Agents and conversations** opens both as one sheet.
+- Collapse the agent rail and the inbox, or drag the inbox wider. In a phone or
+  a narrow window, **Agents and conversations** opens both as one sheet.
 
 <img alt="Grove in the light theme: the agent rail and the conversation list beside an empty conversation pane" src="docs/media/inbox-light.png">
 

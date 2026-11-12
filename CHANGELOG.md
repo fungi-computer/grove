@@ -1,5 +1,16 @@
 # @fungi.computer/grove
 
+## 0.11.2
+
+### Patch Changes
+
+- Changes since 0.11.1:
+
+  - fix(grove): keep modal focus and bring the browser proofs to the current
+    contract
+  - fix(grove): keep the desktop width threshold private
+  - fix(grove): choose the rails layout from Grove's width, not the viewport's
+
 ## 0.11.1
 
 ### Patch Changes

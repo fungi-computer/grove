@@ -63,6 +63,7 @@ function withSavedLayout(
 function Workbench({
   scenario = "inbox",
   narrow = false,
+  tile = false,
   openRequest = null,
   unavailableSessionIds = [],
   models,
@@ -71,6 +72,7 @@ function Workbench({
 }: {
   scenario?: GroveScenario;
   narrow?: boolean;
+  tile?: boolean;
   openRequest?: AppOpenRequest | null;
   unavailableSessionIds?: readonly string[];
   /** The host's setup fact; omit for a host that does not say. */
@@ -119,10 +121,10 @@ function Workbench({
   }, [fixture, connection, queryClient]);
   return (
     <div
-      className={`mx-auto w-full ${narrow ? "max-w-[24rem]" : "max-w-[76rem]"}`}
+      className={`mx-auto w-full ${tile ? "max-w-[30.625rem]" : narrow ? "max-w-[24rem]" : "max-w-[76rem]"}`}
     >
       <div
-        className="flex h-[calc(100dvh-2*var(--spacing-xl))] min-h-96 flex-col"
+        className={`flex flex-col ${tile ? "h-[20.625rem]" : "h-[calc(100dvh-2*var(--spacing-xl))] min-h-96"}`}
         data-theme={theme}
       >
         <div
@@ -181,6 +183,8 @@ export const WebsitesCollision = () => (
 );
 export const ThousandConversations = () => <Workbench scenario="thousand" />;
 export const Narrow = () => <Workbench narrow />;
+/** A third of a tiled desktop: a wide screen around a 490x330 Grove window. */
+export const Tile = () => <Workbench tile />;
 export const Loading = () => <Workbench scenario="loading" />;
 export const EmptyConversations = () => <Workbench scenario="empty" />;
 export const FailedStart = () => <Workbench scenario="start-failed" />;
