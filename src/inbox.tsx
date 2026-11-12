@@ -82,7 +82,7 @@ import {
   useGroveLayout,
 } from "./grove-layout.js";
 import { IconButton } from "@fungi.computer/caps/components/icon-button";
-import { SquarePen } from "lucide-react";
+import { PanelLeftOpen, SquarePen } from "lucide-react";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
@@ -888,6 +888,8 @@ function ConnectedInbox({
     setNavOpen(true);
   };
   const listed = listedInboxRows(view).length;
+  // Phones keep the list in a sheet, so only the desktop pane is ever "visible".
+  const listVisible = desktop && listRailOpen;
   const emptyModelSetup =
     desktop &&
     modelsMissing &&
@@ -1443,6 +1445,23 @@ function ConnectedInbox({
             </ScrollArea>
           </aside>
         )}
+        {desktop && !listRailOpen && !emptyModelSetup ? (
+          // The hidden list keeps its own way back, so a saved layout can
+          // never leave the person with no list and no control for it.
+          <div className="flex w-10 flex-none flex-col items-center border-r border-base-300 pt-1">
+            <IconButton
+              aria-label="Show conversations"
+              aria-controls="grove-list-rail"
+              aria-expanded={false}
+              icon={<PanelLeftOpen />}
+              iconSize="sm"
+              size="sm"
+              onClick={() => {
+                setListRailOpen(() => true);
+              }}
+            />
+          </div>
+        ) : null}
       </NavigationRails>
       <section
         className="inbox-conversation-shell flex min-h-0 min-w-0 flex-1 flex-col"
@@ -1538,7 +1557,7 @@ function ConnectedInbox({
               }
               description={
                 listed > 0
-                  ? "Choose one from the list, or ask for something new. A short writing task is a good start."
+                  ? `${listVisible ? "Choose one from the list" : "Open the conversation list to choose one"}, or ask for something new. A short writing task is a good start.`
                   : "Ask for anything. Pick one to start."
               }
               suggestions={

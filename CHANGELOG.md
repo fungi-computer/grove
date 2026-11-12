@@ -1,5 +1,24 @@
 # @fungi.computer/grove
 
+## 0.11.0
+
+### Minor Changes
+
+- Changes since 0.10.24:
+
+  - fix(grove): keep a way back to the conversation list when it is hidden
+  - feat(window): add in-App Forward to the window contract and title bar
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.10.0
+  - @fungi.computer/caps@0.11.0
+  - @fungi.computer/parakeet@0.11.18
+  - @fungi.computer/shiitake@0.13.1
+  - @fungi.computer/shiitake-extensions@0.6.13
+
 ## 0.10.24
 
 ### Patch Changes

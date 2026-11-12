@@ -8,17 +8,57 @@ import {
 } from "react";
 import { mountApp } from "@fungi.computer/agar/react";
 import { createQueryClient } from "@fungi.computer/agar/query";
+import { appStorage, type AppStorage } from "@fungi.computer/agar/storage";
 import { InboxApp } from "../src/inbox.js";
+import type { GroveLayout } from "../src/grove-layout.js";
 import {
   createGroveFixture,
   type GroveScenario,
   publishedGameFixture,
 } from "./fixtures.js";
-import type { AppOpenRequest, SetupState } from "@fungi.computer/agar";
+import {
+  createCapabilityRegistry,
+  type AppOpenRequest,
+  type AppRoot,
+  type SetupState,
+} from "@fungi.computer/agar";
 import { useWorkbenchStatusBar } from "./status-bar.fixture.js";
 import "@fungi.computer/parakeet/styles.css";
 
 export default { title: "Grove" } satisfies StoryDefault;
+
+function savedLayoutStorage(saved: GroveLayout): AppStorage {
+  return {
+    read: () =>
+      Promise.resolve({
+        value: saved,
+        source: "member",
+        team: null,
+        member: { value: saved, revision: 1 },
+        canWriteTeam: false,
+      }),
+    write: () => Promise.resolve({ revision: 2 }),
+    reset: () => Promise.resolve({ revision: 2 }),
+    watch: () => Promise.reject(new Error("The workbench does not watch")),
+  };
+}
+
+function withSavedLayout(
+  base: AppRoot["capabilities"],
+  saved: GroveLayout,
+): AppRoot["capabilities"] {
+  const registry = createCapabilityRegistry();
+  registry.provide(appStorage, savedLayoutStorage(saved));
+  return {
+    version: base.version,
+    subscribe: (listener) => base.subscribe(listener),
+    has: (contract) => registry.has(contract) || base.has(contract),
+    require: (contract) =>
+      registry.has(contract)
+        ? registry.require(contract)
+        : base.require(contract),
+  };
+}
 
 function Workbench({
   scenario = "inbox",
@@ -27,6 +67,7 @@ function Workbench({
   unavailableSessionIds = [],
   models,
   openBilling,
+  savedLayout,
 }: {
   scenario?: GroveScenario;
   narrow?: boolean;
@@ -35,6 +76,8 @@ function Workbench({
   /** The host's setup fact; omit for a host that does not say. */
   models?: SetupState;
   openBilling?: () => Promise<void>;
+  /** The member's rail layout the host App storage already holds. */
+  savedLayout?: GroveLayout;
 }) {
   const [fixture] = useState(() =>
     createGroveFixture(
@@ -52,9 +95,13 @@ function Workbench({
         ? null
         : {
             ...fixture.connection,
+            capabilities:
+              savedLayout === undefined
+                ? fixture.connection.capabilities
+                : withSavedLayout(fixture.connection.capabilities, savedLayout),
             ui: { ...fixture.connection.ui, ...status },
           },
-    [fixture, status],
+    [fixture, status, savedLayout],
   );
   const theme = useSyncExternalStore(
     (onChange) =>
@@ -119,6 +166,12 @@ export const StableInbox = () => (
         { key: "session", value: "gardener-1" },
       ],
     }}
+  />
+);
+/** A saved hidden conversation list must still offer a way back. */
+export const ListHiddenSaved = () => (
+  <Workbench
+    savedLayout={{ agentRailOpen: true, listRailOpen: false, listWidth: 320 }}
   />
 );
 export const Websites = () => <Workbench scenario="websites" />;

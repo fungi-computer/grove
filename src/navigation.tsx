@@ -65,6 +65,8 @@ export function useInboxNavigation(
   const canGoBack = useCanGoBack();
   useHostNavigation(host, {
     canGoBack,
+    canGoForward: false,
+    onForward: () => false,
     onBack: () => {
       if (!router.history.canGoBack()) return false;
       router.history.back();
