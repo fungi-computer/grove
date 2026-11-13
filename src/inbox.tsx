@@ -60,7 +60,12 @@ import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useAppContext, useWindowStatus } from "@fungi.computer/agar/react";
 import { queryKeys } from "@fungi.computer/agar/query";
 import { appStorage } from "@fungi.computer/agar/storage";
-import { useInboxData, useAgentToolPolicy } from "./queries.js";
+import {
+  useInboxData,
+  useAgentInstructions,
+  useAgentToolPolicy,
+} from "./queries.js";
+import { AgentInstructionsControl } from "./agent-instructions-control.js";
 import { AgentAvatarControl } from "./agent-avatar-control.js";
 import type { Avatar } from "@fungi.computer/sprite/avatar";
 import { createShiitakeClient } from "@fungi.computer/shiitake/client";
@@ -994,6 +999,22 @@ function ConnectedInbox({
     connection,
     facetAgent?.agentId ?? null,
   );
+  const instructions = useAgentInstructions(
+    connection,
+    facetAgent?.agentId ?? null,
+  );
+  const saveInstructions = useCallback(
+    async (agentId: string, text: string): Promise<boolean> => {
+      try {
+        await instructions.save.mutateAsync({ agentId, instructions: text });
+        return true;
+      } catch {
+        // The dialog stays open on the draft and says it could not save.
+        return false;
+      }
+    },
+    [instructions.save.mutateAsync],
+  );
 
   // With an Agent present and nothing to pick up, open a conversation with it: the
   // composer is the first thing on screen, and Grove open → type → Enter sends.
@@ -1308,6 +1329,16 @@ function ConnectedInbox({
                     agentId={renameTarget.agentId}
                     name={renameTarget.name}
                     rename={renameAgent}
+                  />
+                ) : null}
+                {facetAgent && instructions.canUse ? (
+                  <AgentInstructionsControl
+                    key={facetAgent.agentId}
+                    agentId={facetAgent.agentId}
+                    name={facetAgent.name}
+                    instructions={instructions.read.data?.instructions}
+                    loading={instructions.read.isPending}
+                    save={saveInstructions}
                   />
                 ) : null}
                 {connection && (canStart || canCreateAgent) ? (

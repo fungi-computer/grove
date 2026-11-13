@@ -13,6 +13,7 @@ import type { GameSharePreview } from "../src/game-share-card.js";
 import { printsPanelPng } from "./prints-panel-image.js";
 import {
   agentAvatar,
+  agentInstructions,
   agentManage,
   agentList,
   agentSessionRead,
@@ -1506,6 +1507,22 @@ export function createGroveFixture(
         return Promise.reject(new Error("No such Agent"));
       },
     });
+  if (scenario !== "no-agent-access") {
+    const instructionsOf = new Map<string, string>([
+      ["gardener", "Answer in plain language. Keep replies short."],
+    ]);
+    capabilities.provide(agentInstructions, {
+      read: ({ agentId }) =>
+        Promise.resolve({
+          agentId,
+          instructions: instructionsOf.get(agentId) ?? "",
+        }),
+      set: ({ agentId, instructions }) => {
+        instructionsOf.set(agentId, instructions);
+        return Promise.resolve({ agentId, instructions });
+      },
+    });
+  }
   capabilities.provide(agentSessionWrite, {
     open: unsupported,
     openInbox: () =>

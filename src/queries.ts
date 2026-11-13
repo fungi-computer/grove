@@ -2,17 +2,21 @@ import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import type { AppRoot } from "@fungi.computer/agar";
 import {
   agentList,
+  agentInstructions,
   agentManage,
   agentSessionRead,
   agentSessionWrite,
   agentToolPolicy,
   createAppAgent,
   listAppAgentComputers,
+  readAppAgentInstructions,
   renameAppAgent,
+  setAppAgentInstructions,
   setAppAgentAvatar,
   type AppAgent,
   type AppAgentAvatarInput,
   type AppAgentCreateInput,
+  type AppAgentInstructions,
   type AppAgentToolPolicyStatus,
 } from "@fungi.computer/agar/agents";
 import {
@@ -149,4 +153,34 @@ export function useAgentToolPolicy(
     },
   });
   return { canRead, status, approve };
+}
+
+/** The open Agent's standing instructions, readable and savable by its owner. */
+export function useAgentInstructions(
+  app: AppRoot | null,
+  agentId: string | null,
+) {
+  const client = useQueryClient();
+  const canUse = app?.capabilities.has(agentInstructions) === true;
+  const key = queryKeys.of(app, "agent-instructions", agentId ?? "none");
+  const read = useQuery({
+    ...capabilityQuery(app, agentInstructions, key, () => {
+      if (!app || agentId === null) throw new Error("No Agent is open");
+      return readAppAgentInstructions(app.capabilities, agentId);
+    }),
+    enabled: canUse && agentId !== null,
+  });
+  const save = useMutation({
+    mutationFn: (input: { agentId: string; instructions: string }) => {
+      if (!app) throw new Error("No App connection");
+      return setAppAgentInstructions(app.capabilities, input);
+    },
+    onSuccess: (saved) => {
+      client.setQueryData<AppAgentInstructions>(
+        queryKeys.of(app, "agent-instructions", saved.agentId),
+        saved,
+      );
+    },
+  });
+  return { canUse, read, save };
 }
