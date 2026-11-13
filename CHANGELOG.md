@@ -1,5 +1,22 @@
 # @fungi.computer/grove
 
+## 0.12.1
+
+### Patch Changes
+
+- Changes since 0.12.0:
+
+  - fix(grove): keep the live tool output replay type private
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.12.1
+  - @fungi.computer/shiitake-extensions@0.8.0
+  - @fungi.computer/shiitake@0.15.0
+  - @fungi.computer/parakeet@0.11.25
+  - @fungi.computer/knapsack@0.4.11
+
 ## 0.12.0
 
 ### Minor Changes

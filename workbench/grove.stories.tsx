@@ -432,6 +432,26 @@ export const ConversationHistoryNoModel = () => (
   />
 );
 
+/**
+ * A running command's output tail. The frames are the real session frames the
+ * Hub's Agent sent while a command ran on its Computer (captured by
+ * apps/hub test:grove-live-output); the proof steps them one at a time.
+ */
+export const LiveToolOutput = () => (
+  <Workbench
+    scenario="live-tool-output"
+    models="ready"
+    openRequest={{
+      kind: "navigate",
+      requestId: "grove-live-tool-output",
+      params: [
+        { key: "agent", value: "gardener" },
+        { key: "session", value: "gardener-1" },
+      ],
+    }}
+  />
+);
+
 /** A real funding refusal keeps the creation draft and delegates Billing to its host. */
 export function UnfundedTeam() {
   const [opened, setOpened] = useState(false);

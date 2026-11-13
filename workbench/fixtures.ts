@@ -59,6 +59,7 @@ import {
 import * as Schema from "effect/Schema";
 import type { InboxServices } from "../src/inbox.js";
 import { createFixtureMemberInbox } from "./member-inbox-fixture.js";
+import { replayLiveToolOutput } from "./live-tool-output-replay.js";
 
 /** The footer view of one conversation that sent work to two Agents and created a third. */
 const subagentSlots = {
@@ -156,7 +157,8 @@ export type GroveScenario =
   | "admission-retry"
   | "conversation-interrupted"
   | "conversation-cancelled"
-  | "subagents";
+  | "subagents"
+  | "live-tool-output";
 
 type ListState = "needs_you" | "running" | "errored" | "unseen";
 
@@ -1636,6 +1638,9 @@ export function createGroveFixture(
             read: () => Promise.reject(new Error(message)),
             watch: () => Promise.reject(new Error(message)),
           });
+          // The real frames a Hub Agent session sent while its command ran.
+          if (scenario === "live-tool-output")
+            return replayLiveToolOutput(session);
           if (scenario === "conversation-loading")
             return {
               ...session,
