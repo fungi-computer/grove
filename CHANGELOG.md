@@ -1,5 +1,14 @@
 # @fungi.computer/grove
 
+## 0.13.3
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/shiitake@0.17.0
+  - @fungi.computer/parakeet@0.11.29
+  - @fungi.computer/shiitake-extensions@0.9.3
+
 ## 0.13.2
 
 ### Patch Changes
