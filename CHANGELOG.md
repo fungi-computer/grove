@@ -1,5 +1,33 @@
 # @fungi.computer/grove
 
+## 0.13.0
+
+### Minor Changes
+
+- Changes since 0.12.1:
+
+  - fix(grove): make Reload and the no-Home button work where a person taps
+  - fix(grove): log a failed instructions reload instead of swallowing it
+  - fix(grove): polish the Agent instructions dialog
+  - fix(parakeet): name an execute row's tool and command, not its script
+  - feat(agents): an Agent's instructions are AGENTS.md on its Home Computer
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.13.0
+  - @fungi.computer/caps@0.11.4
+  - @fungi.computer/parakeet@0.11.26
+  - @fungi.computer/shiitake-extensions@0.9.0
+  - @fungi.computer/shiitake@0.16.0
+  - @fungi.computer/sigils@0.3.2
+  - @fungi.computer/knapsack@0.4.12
+
 ## 0.12.1
 
 ### Patch Changes

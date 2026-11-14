@@ -65,7 +65,10 @@ import {
   useAgentInstructions,
   useAgentToolPolicy,
 } from "./queries.js";
-import { AgentInstructionsControl } from "./agent-instructions-control.js";
+import {
+  AgentInstructionsControl,
+  type InstructionsSave,
+} from "./agent-instructions-control.js";
 import { AgentAvatarControl } from "./agent-avatar-control.js";
 import type { Avatar } from "@fungi.computer/sprite/avatar";
 import { createShiitakeClient } from "@fungi.computer/shiitake/client";
@@ -1004,16 +1007,38 @@ function ConnectedInbox({
     facetAgent?.agentId ?? null,
   );
   const saveInstructions = useCallback(
-    async (agentId: string, text: string): Promise<boolean> => {
+    async (
+      agentId: string,
+      edit: { expectedContent: string | null; content: string },
+    ): Promise<InstructionsSave> => {
       try {
-        await instructions.save.mutateAsync({ agentId, instructions: text });
-        return true;
-      } catch {
-        // The dialog stays open on the draft and says it could not save.
-        return false;
+        await instructions.save.mutateAsync({ agentId, ...edit });
+        return "saved";
+      } catch (cause) {
+        // The dialog stays open on the draft and says what happened.
+        if (cause instanceof AppError && cause.code === "CONFLICT")
+          return "conflict";
+        if (cause instanceof AppError && cause.code === "FILE_TOO_LARGE")
+          return "too_large";
+        return "failed";
       }
     },
     [instructions.save.mutateAsync],
+  );
+  const reloadInstructions = useCallback(async () => {
+    const latest = await instructions.read.refetch({ throwOnError: true });
+    if (latest.data === undefined) throw new Error("No instructions file");
+    return latest.data;
+  }, [instructions.read.refetch]);
+  const notifyInstructions = useCallback(
+    (message: string, tone: "error" | "warning") => {
+      void connection?.ui
+        .showToast({ message, tone })
+        .catch((cause: unknown) => {
+          console.error("Instructions toast failed", cause);
+        });
+    },
+    [connection],
   );
 
   // With an Agent present and nothing to pick up, open a conversation with it: the
@@ -1336,9 +1361,11 @@ function ConnectedInbox({
                     key={facetAgent.agentId}
                     agentId={facetAgent.agentId}
                     name={facetAgent.name}
-                    instructions={instructions.read.data?.instructions}
+                    file={instructions.read.data}
                     loading={instructions.read.isPending}
                     save={saveInstructions}
+                    reload={reloadInstructions}
+                    notify={notifyInstructions}
                   />
                 ) : null}
                 {connection && (canStart || canCreateAgent) ? (

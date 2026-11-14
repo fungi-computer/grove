@@ -1510,18 +1510,47 @@ export function createGroveFixture(
       },
     });
   if (scenario !== "no-agent-access") {
-    const instructionsOf = new Map<string, string>([
+    // Gardener has a saved file; librarian has a Home and no file yet, then writes
+    // one before the owner's first save; maker has no Home.
+    const files = new Map<string, string | null>([
       ["gardener", "Answer in plain language. Keep replies short."],
+      ["librarian", null],
     ]);
+    const limit = 32_000;
+    const view = (agentId: string) => {
+      const home = agentId === "maker" ? null : { name: "garden" };
+      const content = home === null ? null : (files.get(agentId) ?? null);
+      return {
+        agentId,
+        home,
+        content,
+        bytes: content === null ? 0 : new TextEncoder().encode(content).length,
+        limit,
+      };
+    };
+    let librarianSaves = 0;
     capabilities.provide(agentInstructions, {
-      read: ({ agentId }) =>
-        Promise.resolve({
-          agentId,
-          instructions: instructionsOf.get(agentId) ?? "",
-        }),
-      set: ({ agentId, instructions }) => {
-        instructionsOf.set(agentId, instructions);
-        return Promise.resolve({ agentId, instructions });
+      read: ({ agentId }) => Promise.resolve(view(agentId)),
+      set: ({ agentId, expectedContent, content }) => {
+        if (view(agentId).home === null)
+          return Promise.reject(
+            new AppError("This Agent has no Home.", {
+              code: "CONFLICT",
+              retryable: false,
+            }),
+          );
+        // Librarian writes its own file between the owner's read and first save.
+        if (agentId === "librarian" && (librarianSaves += 1) === 1)
+          files.set("librarian", "Shelve returns daily. Cite the catalog.");
+        if ((files.get(agentId) ?? null) !== expectedContent)
+          return Promise.reject(
+            new AppError("This file changed. Reload it and try again.", {
+              code: "CONFLICT",
+              retryable: false,
+            }),
+          );
+        files.set(agentId, content);
+        return Promise.resolve(view(agentId));
       },
     });
   }

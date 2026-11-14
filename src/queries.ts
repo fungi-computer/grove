@@ -155,7 +155,7 @@ export function useAgentToolPolicy(
   return { canRead, status, approve };
 }
 
-/** The open Agent's standing instructions, readable and savable by its owner. */
+/** The AGENTS.md on the open Agent's Home Computer, readable and savable by its owner. */
 export function useAgentInstructions(
   app: AppRoot | null,
   agentId: string | null,
@@ -171,7 +171,11 @@ export function useAgentInstructions(
     enabled: canUse && agentId !== null,
   });
   const save = useMutation({
-    mutationFn: (input: { agentId: string; instructions: string }) => {
+    mutationFn: (input: {
+      agentId: string;
+      expectedContent: string | null;
+      content: string;
+    }) => {
       if (!app) throw new Error("No App connection");
       return setAppAgentInstructions(app.capabilities, input);
     },
