@@ -1,5 +1,25 @@
 # @fungi.computer/grove
 
+## 0.14.0
+
+### Minor Changes
+
+- Changes since 0.13.13:
+
+  - fix(parakeet): render the transcript as a column-reverse scroller
+  - feat(parakeet): own the in-view conversation and its opening in one place
+  - fix(grove): never wait for a route echo that cannot come
+  - fix(grove): keep the view helper private to its module
+  - fix(grove): one owner for the conversation in view
+  - fix(grove): hand the pane to a new conversation while it opens
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/parakeet@0.12.0
+  - @fungi.computer/shiitake-extensions@0.11.0
+
 ## 0.13.13
 
 ### Patch Changes

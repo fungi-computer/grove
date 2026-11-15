@@ -11,6 +11,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import {
   createInboxRouter,
   InboxRouteContent,
+  shownSelection,
   useInboxNavigation,
   type InboxRouter,
 } from "./navigation.js";
@@ -80,6 +81,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { Button } from "@fungi.computer/caps/components/button";
 import { ResizeHandle } from "@fungi.computer/caps/components/resize-handle";
@@ -100,11 +102,17 @@ import { InboxList } from "./inbox-list.js";
 import { showConversationToast } from "./conversation-toast.js";
 import { useWebsiteInbox } from "./website-inbox.js";
 import {
+  createConversationView,
+  initialViewState,
+  openingTarget,
+  shownConversation,
+  type ConversationViewSnapshot,
+} from "@fungi.computer/parakeet/conversation-view";
+import {
   createConversationOpeningOwner,
   eventSourceFor,
   type InboxClient,
   type OpenConversation,
-  type PendingSelection,
 } from "@fungi.computer/parakeet/conversation-opening";
 
 const WebsiteConversation = lazy(async () => {
@@ -193,11 +201,18 @@ function Conversation({
   onOpen,
   models,
   autoFocus,
+  opening = false,
   label = "Conversation",
 }: {
   connection: AppRoot | null;
   /** Whether the host has a model connected, when it says. */
   models?: SetupState | undefined;
+  /**
+   * Another conversation is opening. This one stays in view with its draft, but
+   * cannot be typed into: a message sent now would land in a Session the
+   * person is about to leave.
+   */
+  opening?: boolean | undefined;
   /** Focus the composer on open (the main pane, not a beside conversation). */
   autoFocus?: boolean | undefined;
   commands: ParakeetCommandRuntime;
@@ -214,6 +229,10 @@ function Conversation({
   label?: string;
 }): React.JSX.Element {
   const session = open.session;
+  const pane = useRef<HTMLElement>(null);
+  useEffect(() => {
+    pane.current?.toggleAttribute("inert", opening);
+  }, [opening]);
   const [modelCatalog, setModelCatalog] = useState<
     | { kind: "loading" }
     | { kind: "unavailable" }
@@ -301,8 +320,10 @@ function Conversation({
   ]);
   return (
     <section
+      ref={pane}
       className="inbox-conversation min-h-0 min-w-0 flex-1"
       data-inbox-conversation
+      aria-busy={opening}
       aria-label={label}
     >
       {renderConversation ? (
@@ -339,6 +360,12 @@ export type InboxProps = {
   services?: InboxServices;
 };
 
+const emptyViewSnapshot: ConversationViewSnapshot = {
+  state: initialViewState,
+  error: null,
+};
+const subscribeNothing = (): (() => void) => () => undefined;
+
 export function InboxApp(props: InboxProps): React.JSX.Element {
   useAppContext(props.connection);
   return (
@@ -371,6 +398,28 @@ function ConnectedInbox({
   } = useInboxNavigation(router, connection?.window.navigation);
   const queryClient = useQueryClient();
   const websites = useWebsiteInbox(connection, services);
+  // One owner decides which conversation is in view and opens it; Grove
+  // dispatches intents and reads its snapshot (Parakeet's conversation-view).
+  const conversationView = useMemo(
+    () =>
+      connection === null
+        ? null
+        : createConversationView({
+            connection,
+            queryClient,
+            services,
+            navigate: (target) =>
+              target === null
+                ? router.navigate({ to: "/", search: true, replace: true })
+                : navigateSession(target.agentId, target.sessionId),
+            shownRoute: () => shownSelection(router),
+          }),
+    [connection, navigateSession, queryClient, router, services],
+  );
+  const viewSnapshot = useSyncExternalStore(
+    conversationView?.subscribe ?? subscribeNothing,
+    conversationView?.snapshot ?? (() => emptyViewSnapshot),
+  );
   const {
     directory,
     inbox,
@@ -411,8 +460,7 @@ function ConnectedInbox({
         selection?.agentId === target.agentId &&
         selection.sessionId === target.sessionId
       ) {
-        conversationOpener?.clear();
-        void router.navigate({ to: "/", search: true, replace: true });
+        conversationView?.leave(true);
       }
       inbox.refresh();
     },
@@ -420,10 +468,10 @@ function ConnectedInbox({
   const startingAgentId = startMutation.isPending
     ? startMutation.variables.agentId
     : null;
-  const [pendingSelection, setPendingSelection] =
-    useState<PendingSelection | null>(null);
-  const [openConversation, setOpenConversation] =
-    useState<OpenConversation | null>(null);
+  const pendingSelection = openingTarget(viewSnapshot.state);
+  // While another conversation opens, the one being left stays the open one
+  // for the list and header; the pane itself waits for the new one.
+  const openConversation = shownConversation(viewSnapshot.state);
   const [websitesOnly, setWebsitesOnly] = useState(false);
   const selectedAgentId = openConversation?.agentId ?? null;
   const selectedSessionId = openConversation?.sessionId ?? null;
@@ -489,28 +537,16 @@ function ConnectedInbox({
   const openRequest = appContext?.openRequest ?? null;
   const modelsMissing = appContext?.setup?.models === "missing";
   const handledOpenRequestId = useRef<string | null>(null);
-  const conversationOpener = useMemo(
-    () =>
-      connection === null
-        ? null
-        : createConversationOpeningOwner({
-            connection,
-            queryClient,
-            services,
-            onPending: setPendingSelection,
-            onConversation: setOpenConversation,
-            onError: setConversationError,
-          }),
-    [connection, queryClient, services],
-  );
-
+  // The route as the router last published it, for a new view to rejoin.
+  const routeRef = useRef<{ agentId: string; sessionId: string } | null>(null);
   useEffect(() => {
-    if (conversationOpener === null) return;
+    if (conversationView === null) return;
+    conversationView.observeRoute(routeRef.current);
     return () => {
       sessionCreateIntent.current = null;
-      conversationOpener.close();
+      conversationView.close();
     };
-  }, [conversationOpener]);
+  }, [conversationView]);
 
   // A footer row (a sub-agent) opens beside the selected conversation, with
   // its own opener and command runtime; the route keeps the primary one.
@@ -553,22 +589,21 @@ function ConnectedInbox({
     [besideOpener],
   );
 
-  // Row/host requests start immediately. Consume their route publication once
-  // so a failed baseline is not retried by the router's later render.
-  const initiatedSelection = useRef<PendingSelection | null>(null);
+  // A row, a host request or a started conversation is a choice: it opens at
+  // once and the route follows it (see conversation-view.ts for the rules).
   const selectSession = useCallback(
     (agentId: string, sessionId: string, fromOpenRequest = false): void => {
-      if (conversationOpener === null) return;
+      if (conversationView === null) return;
       if (startMutation.isError) startMutation.reset();
       websites.clear();
       setWebsitesOnly(false);
-      initiatedSelection.current = { agentId, sessionId };
-      conversationOpener.select(agentId, sessionId, fromOpenRequest);
-      navigateSession(agentId, sessionId);
+      conversationView.select(
+        { agentId, sessionId },
+        fromOpenRequest ? "host" : "person",
+      );
     },
     [
-      conversationOpener,
-      navigateSession,
+      conversationView,
       websites.clear,
       startMutation.isError,
       startMutation.reset,
@@ -577,18 +612,13 @@ function ConnectedInbox({
 
   const routeAgentId = selection?.agentId;
   const routeSessionId = selection?.sessionId;
+  routeRef.current =
+    routeAgentId !== undefined && routeSessionId !== undefined
+      ? { agentId: routeAgentId, sessionId: routeSessionId }
+      : null;
   useEffect(() => {
-    const initiated = initiatedSelection.current;
-    initiatedSelection.current = null;
-    if (routeAgentId === undefined || routeSessionId === undefined) {
-      conversationOpener?.clear();
-    } else if (
-      initiated?.agentId !== routeAgentId ||
-      initiated.sessionId !== routeSessionId
-    ) {
-      conversationOpener?.select(routeAgentId, routeSessionId);
-    }
-  }, [conversationOpener, routeAgentId, routeSessionId]);
+    conversationView?.observeRoute(routeRef.current);
+  }, [conversationView, routeAgentId, routeSessionId]);
 
   const onForked = useCallback(
     (sessionId: string): void => {
@@ -650,9 +680,16 @@ function ConnectedInbox({
   const conversationShown =
     !!openConversation || websites.selected !== undefined;
   const startConversation = useCallback(
-    async (agentId: string, starter?: string) => {
-      if (!connection || startingAgentId !== null)
+    async (
+      agentId: string,
+      starter?: string,
+      cause: "person" | "auto" = "person",
+    ) => {
+      if (!connection || !conversationView || startingAgentId !== null)
         return "Conversation creation is unavailable.";
+      // Grove's own first conversation never competes with a person's choice.
+      const request = conversationView.create(cause);
+      if (!request.accepted || request.ticket === null) return undefined;
       setConversationError(null);
       const intent =
         sessionCreateIntent.current?.agentId === agentId
@@ -665,14 +702,23 @@ function ConnectedInbox({
       try {
         const sessionId = await startMutation.mutateAsync(intent);
         // The loaded member inbox owns the new row and resumes its feed.
-        selectSession(agentId, sessionId);
-        // A chosen starter sends as written once the conversation is open.
-        if (starter !== undefined)
-          setComposeDraft({
-            requestId: correlationKey(),
-            text: starter,
-            send: true,
-          });
+        // A Session another choice has since superseded is simply not shown.
+        const placed = conversationView.created(request.ticket, {
+          agentId,
+          sessionId,
+        });
+        if (placed.accepted) {
+          if (startMutation.isError) startMutation.reset();
+          websites.clear();
+          setWebsitesOnly(false);
+          // A chosen starter sends as written once the conversation is open.
+          if (starter !== undefined)
+            setComposeDraft({
+              requestId: correlationKey(),
+              text: starter,
+              send: true,
+            });
+        }
         // Session creation can beat this App's visibility feed delta. Reload
         // the owner snapshot without delaying the new conversation opening.
         inbox.refresh();
@@ -682,6 +728,7 @@ function ConnectedInbox({
           sessionCreateIntent.current = null;
         return undefined;
       } catch (cause: unknown) {
+        conversationView.createFailed(request.ticket);
         console.error("Grove conversation creation failed", cause);
         // With a conversation open the failure is a toast; the empty state
         // keeps its Retry card.
@@ -698,9 +745,12 @@ function ConnectedInbox({
     [
       connection,
       conversationShown,
-      selectSession,
+      conversationView,
       startingAgentId,
+      startMutation.isError,
       startMutation.mutateAsync,
+      startMutation.reset,
+      websites.clear,
       inbox.refresh,
     ],
   );
@@ -1081,7 +1131,7 @@ function ConnectedInbox({
     )
       return;
     autoStarted.current = true;
-    void startConversation(startAgent.agentId);
+    void startConversation(startAgent.agentId, undefined, "auto");
   }, [
     canWriteAgent,
     connection,
@@ -1525,7 +1575,7 @@ function ConnectedInbox({
                     )}
                     selectedWebsite={websites.selected}
                     onSelectWebsite={(row) => {
-                      conversationOpener?.clear();
+                      conversationView?.leave(false);
                       setNavOpen(false);
                       websites.select(row);
                     }}
@@ -1558,17 +1608,23 @@ function ConnectedInbox({
         aria-label="Conversation"
       >
         <TeamNotices app={connection} />
-        {conversationError ? (
+        {(conversationError ?? viewSnapshot.error) ? (
           <Alert
             className="inbox-error m-2"
             tone="error"
-            title={conversationError}
+            title={conversationError ?? viewSnapshot.error ?? ""}
           />
         ) : null}
         {websites.selected ? (
           <Suspense fallback={null}>
             <WebsiteConversation inbox={websites} ui={connection?.ui ?? null} />
           </Suspense>
+        ) : pendingSelection !== null && openConversation === null ? (
+          <LoadingState
+            className="m-auto"
+            framed={false}
+            message="Opening conversation…"
+          />
         ) : openConversation ? (
           <Conversation
             open={openConversation}
@@ -1583,6 +1639,7 @@ function ConnectedInbox({
             onOpen={openBeside}
             models={appContext?.setup?.models}
             autoFocus={desktop && creation === null}
+            opening={pendingSelection !== null}
           />
         ) : !connection || directoryLoading ? (
           <LoadingState

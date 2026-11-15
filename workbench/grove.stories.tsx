@@ -354,6 +354,7 @@ function Conversation({
   );
 }
 export const ConversationReply = () => <Conversation />;
+export const ForkFromMessage = () => <Conversation scenario="fork" />;
 export const AdmissionRetry = () => <Conversation scenario="admission-retry" />;
 /** A completed Session while the bulk inbox still reports the previous run. */
 export const ConversationAnsweredInboxLag = () => (

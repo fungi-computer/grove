@@ -19,18 +19,14 @@ const root = createRootRoute({
   component: () => null,
 });
 const list = createRoute({ getParentRoute: () => root, path: "/" });
+const sessionParams = z.object({
+  agentId: z.string().min(1),
+  sessionId: z.string().min(1),
+});
 const session = createRoute({
   getParentRoute: () => root,
   path: "/sessions/$agentId/$sessionId",
-  params: {
-    parse: (params) =>
-      z
-        .object({
-          agentId: z.string().min(1),
-          sessionId: z.string().min(1),
-        })
-        .parse(params),
-  },
+  params: { parse: (params) => sessionParams.parse(params) },
 });
 
 /** The App window owns memory history; browser/Hub history stays with the host. */
@@ -49,6 +45,17 @@ export function createInboxRouter() {
   });
 }
 export type InboxRouter = ReturnType<typeof createInboxRouter>;
+
+/** The conversation the router shows now, read once a navigation has finished. */
+export function shownSelection(
+  router: InboxRouter,
+): { agentId: string; sessionId: string } | null {
+  const match = router.state.matches.find(
+    (entry) => entry.routeId === session.id,
+  );
+  const parsed = sessionParams.safeParse(match?.params);
+  return parsed.success ? parsed.data : null;
+}
 
 export function useInboxNavigation(
   router: InboxRouter,
@@ -84,13 +91,12 @@ export function useInboxNavigation(
     [router],
   );
   const open = useCallback(
-    (agentId: string, sessionId: string) => {
-      void router.navigate({
+    (agentId: string, sessionId: string) =>
+      router.navigate({
         to: "/sessions/$agentId/$sessionId",
         params: { agentId, sessionId },
         search: true,
-      });
-    },
+      }),
     [router],
   );
   return {

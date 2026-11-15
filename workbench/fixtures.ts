@@ -158,6 +158,7 @@ export type GroveScenario =
   | "conversation-interrupted"
   | "conversation-cancelled"
   | "subagents"
+  | "fork"
   | "live-tool-output";
 
 type ListState = "needs_you" | "running" | "errored" | "unseen";
@@ -272,12 +273,24 @@ function previewCommand(input: SessionCommand): Promise<PreviewResult> {
     : unsupported();
 }
 
+/**
+ * The fork scenario's owner: a forked Session keeps the source's lineage from
+ * its root through the chosen message, as Shiitake's `forkSessionAt` does.
+ */
+type PreviewFork = Readonly<{
+  /** The transcript a forked Session already holds, when this is one. */
+  kept: SessionSnapshot["messages"] | undefined;
+  /** Commit a new Session from the kept lineage and name it. */
+  create: (messages: SessionSnapshot["messages"]) => string;
+}>;
+
 /** Real Parakeet consumes this read-only Session; no replacement timeline. */
 function previewSession(
   sessionId: string,
   status: PreviewStatus,
   scenario: GroveScenario,
   onTurn?: (state: "running" | "done", at: number) => void,
+  fork?: PreviewFork,
 ): ShiitakeSession {
   const admittedRequests = new Map<string, string>();
   const withdrawnRequests = new Set<string>();
@@ -633,6 +646,55 @@ function previewSession(
         diagnostic: null,
       },
     ];
+    snapshot = { ...snapshot, messages, terminals };
+  }
+  if (scenario === "fork" && fork !== undefined && status === "idle") {
+    const template = snapshot.messages.find(
+      (message) => message.value.role === "assistant",
+    )?.value;
+    if (template?.role !== "assistant")
+      throw new Error("Fork fixture needs a settled reply");
+    const turns = [
+      ["Plan the fern bed", "The fern bed goes in the shady corner."],
+      ["Which compost suits ferns?", "Leaf mould, mixed half and half."],
+      ["Add a trellis for the beans", "A bamboo trellis on the sunny wall."],
+      ["Write the watering schedule", "Water every second morning."],
+    ] as const;
+    const messages: SessionSnapshot["messages"] =
+      fork.kept ??
+      turns.flatMap(([ask, answer], turn) => [
+        {
+          id: `fork-user-${String(turn + 1)}`,
+          sequence: turn * 2 + 1,
+          commandId: `fork-command-${String(turn + 1)}`,
+          value: { role: "user", content: ask, timestamp: Date.now() },
+        },
+        {
+          id: `fork-reply-${String(turn + 1)}`,
+          sequence: turn * 2 + 2,
+          commandId: null,
+          value: { ...template, content: [{ type: "text", text: answer }] },
+        },
+      ]);
+    // A user message with a later reply is a completed turn; a fork that ends
+    // at its anchor message leaves that last turn unanswered.
+    const terminals: SessionSnapshot["terminals"] = messages.flatMap(
+      (message, at) => {
+        const reply = messages[at + 1];
+        return message.value.role === "user" &&
+          message.commandId !== null &&
+          at + 1 < messages.length
+          ? [
+              {
+                commandId: message.commandId,
+                outcome: "completed" as const,
+                sequence: reply.sequence,
+                diagnostic: null,
+              },
+            ]
+          : [];
+      },
+    );
     snapshot = { ...snapshot, messages, terminals };
   }
   if (scenario === "prints-panel" && sessionId === "gardener-1") {
@@ -1040,6 +1102,17 @@ function previewSession(
     return Promise.resolve({ status: "accepted", commandId: workId });
   }
 
+  function forkAt(input: ForkCommand): Promise<ForkedSession> {
+    const at = snapshot.messages.findIndex(
+      (message) => message.id === input.entryId,
+    );
+    if (fork === undefined || at === -1)
+      return Promise.reject(new Error("Fork message is unavailable"));
+    return Promise.resolve({
+      sessionId: fork.create(snapshot.messages.slice(0, at + 1)),
+    });
+  }
+
   function command(input: AdmissionCommand): Promise<Accepted>;
   function command(input: CancelCommand): Promise<CancelResult>;
   function command(input: UnrecordedCommand): Promise<undefined>;
@@ -1050,6 +1123,7 @@ function previewSession(
       if (scenario === "queued-cancel") return cancelDelayed(input);
       if (modelsQueue) return recallQueued(input);
     }
+    if (input.type === "fork" && scenario === "fork") return forkAt(input);
     if (input.type === "prompt") {
       if (modelsQueue) return admitQueued(input);
       if (scenario === "stable-inbox") return replyInInbox(input);
@@ -1599,6 +1673,7 @@ export function createGroveFixture(
   });
   let failedStart = false;
   let previewTurns = 0;
+  const forkedTranscripts = new Map<string, SessionSnapshot["messages"]>();
   const services: InboxServices = {
     // The real app opens a first conversation by itself; the workbench does too.
     autoOpen: true,
@@ -1659,6 +1734,42 @@ export function createGroveFixture(
                   },
                 ]);
             },
+            scenario === "fork"
+              ? {
+                  kept: forkedTranscripts.get(sessionId),
+                  create: (messages) => {
+                    const forkedId = `${agentId}-fork-${String(forkedTranscripts.size + 1)}`;
+                    // Fresh identities, as a committed fork copies its rows.
+                    forkedTranscripts.set(
+                      forkedId,
+                      messages.map((message) => ({
+                        ...message,
+                        id: `${forkedId}:${message.id}`,
+                      })),
+                    );
+                    const source = memberInbox.current(agentId, sessionId);
+                    const at = Date.now();
+                    memberInbox.push([
+                      {
+                        agentId,
+                        sessionId: forkedId,
+                        title: `Fork: ${
+                          source === undefined || source.state === "unavailable"
+                            ? "Conversation"
+                            : source.title
+                        }`,
+                        createdAt: at,
+                        lastActivityAt: at,
+                        settledAt: at,
+                        // Grove selects the fork the moment it exists.
+                        visitedAt: at,
+                        state: "done",
+                      },
+                    ]);
+                    return forkedId;
+                  },
+                }
+              : undefined,
           );
           // Grove seeds a conversation from its bounded read, then watches;
           // an unreadable Session fails both, as its owner would.
