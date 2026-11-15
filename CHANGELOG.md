@@ -1,5 +1,13 @@
 # @fungi.computer/grove
 
+## 0.13.13
+
+### Patch Changes
+
+- Changes since 0.13.12:
+
+  - fix(grove): toast a conversation that fails to open or start
+
 ## 0.13.12
 
 ### Patch Changes

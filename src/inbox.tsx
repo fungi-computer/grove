@@ -647,6 +647,8 @@ function ConnectedInbox({
     ],
   );
 
+  const conversationShown =
+    !!openConversation || websites.selected !== undefined;
   const startConversation = useCallback(
     async (agentId: string, starter?: string) => {
       if (!connection || startingAgentId !== null)
@@ -681,6 +683,13 @@ function ConnectedInbox({
         return undefined;
       } catch (cause: unknown) {
         console.error("Grove conversation creation failed", cause);
+        // With a conversation open the failure is a toast; the empty state
+        // keeps its Retry card.
+        if (conversationShown)
+          showConversationToast(connection.ui, {
+            variant: "error",
+            message: "The conversation could not be started. Try again.",
+          });
         return cause instanceof Error
           ? cause.message
           : "Couldn't start the conversation.";
@@ -688,6 +697,7 @@ function ConnectedInbox({
     },
     [
       connection,
+      conversationShown,
       selectSession,
       startingAgentId,
       startMutation.mutateAsync,
@@ -1195,13 +1205,9 @@ function ConnectedInbox({
 
   const failedStart = startMutation.isError ? startMutation.variables : null;
   const startFailureNotice =
-    failedStart && creation !== "session" ? (
+    failedStart && creation !== "session" && !conversationShown ? (
       <Alert
-        className={
-          openConversation || websites.selected
-            ? "inbox-error m-2"
-            : "inbox-empty m-auto max-w-[28rem]"
-        }
+        className="inbox-empty m-auto max-w-[28rem]"
         tone="error"
         title="Couldn't start the conversation."
         description={startMutation.error?.message}
@@ -1559,7 +1565,6 @@ function ConnectedInbox({
             title={conversationError}
           />
         ) : null}
-        {openConversation || websites.selected ? startFailureNotice : null}
         {websites.selected ? (
           <Suspense fallback={null}>
             <WebsiteConversation inbox={websites} ui={connection?.ui ?? null} />

@@ -23,6 +23,7 @@ import {
   type OpenConversation,
   type Services,
 } from "@fungi.computer/parakeet/conversation-opening";
+import { showConversationToast } from "./conversation-toast.js";
 import { createWebsiteReplySession } from "./website-reply-session.js";
 
 export type WebsiteInboxRow = Readonly<{
@@ -43,7 +44,6 @@ export function useWebsiteInbox(app: AppRoot | null, services: Services) {
     sessionId: string;
   }> | null>(null);
   const [open, setOpen] = useState<OpenConversation | null>(null);
-  const [openingError, setOpeningError] = useState<string | null>(null);
   const canRead = app?.capabilities.has(channelsRead) === true;
   const canManage = app?.capabilities.has(channelsPersonalManage) === true;
   const directory = useQuery({
@@ -97,7 +97,13 @@ export function useWebsiteInbox(app: AppRoot | null, services: Services) {
             services,
             onPending: () => undefined,
             onConversation: setOpen,
-            onError: setOpeningError,
+            onError: (message) => {
+              if (message === null) return;
+              showConversationToast(app.ui, {
+                variant: "error",
+                message: "That conversation could not be opened. Try again.",
+              });
+            },
           }),
     [app, client, services],
   );
@@ -185,7 +191,6 @@ export function useWebsiteInbox(app: AppRoot | null, services: Services) {
     selected,
     session,
     action,
-    openingError,
     loading:
       canRead && (directory.isPending || pages.some((page) => page.isPending)),
     failed:

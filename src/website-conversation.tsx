@@ -22,7 +22,7 @@ export function WebsiteConversation({
   inbox: ReturnType<typeof useWebsiteInbox>;
   ui: AppRoot["ui"] | null;
 }) {
-  const { selected, session, action, canManage, openingError } = inbox;
+  const { selected, session, action, canManage } = inbox;
   const [confirmation, setConfirmation] = useState<Readonly<{
     bindingId: string;
     sessionId: string;
@@ -134,11 +134,6 @@ export function WebsiteConversation({
         <p className="p-3 text-sm">
           Allow takeover in Grove's App permissions to reply. Your Team
           permissions still apply.
-        </p>
-      ) : null}
-      {openingError ? (
-        <p role="alert" className="p-2 text-sm text-error">
-          {openingError}
         </p>
       ) : null}
       {session ? (
