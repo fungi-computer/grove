@@ -1,5 +1,16 @@
 # @fungi.computer/grove
 
+## 0.13.11
+
+### Patch Changes
+
+- Changes since 0.13.10:
+
+  - fix(approvals): word every refused approval in plain language
+
+- Updated dependencies
+  - @fungi.computer/parakeet@0.11.37
+
 ## 0.13.10
 
 ### Patch Changes
