@@ -5,6 +5,7 @@ import type { AppRoot } from "@fungi.computer/agar";
 import { readOutputSchema } from "@fungi.computer/knapsack/files-read";
 import type { ParakeetToolItem } from "@fungi.computer/parakeet";
 import { useState } from "react";
+import { showConversationToast } from "./conversation-toast.js";
 
 /** Recognize a complete read result as a navigation hint, never as file authority. */
 function fileReference(item: ParakeetToolItem) {
@@ -28,17 +29,17 @@ export function FileResultAction({
 }): React.JSX.Element | null {
   const file = fileReference(item);
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
   if (!file) return null;
   const open = async () => {
     setPending(true);
-    setFailed(false);
     try {
       await ui.openNavigation(file);
     } catch (cause) {
       console.error("Chat file navigation failed", cause);
-
-      setFailed(true);
+      showConversationToast(ui, {
+        variant: "error",
+        message: "The file could not be opened. Try again.",
+      });
     } finally {
       setPending(false);
     }
@@ -54,9 +55,6 @@ export function FileResultAction({
       >
         {pending ? "Opening file…" : `Open ${file.path} in Inkcap`}
       </Button>
-      {failed ? (
-        <p role="alert">The file could not be opened. Try again.</p>
-      ) : null}
     </div>
   );
 }

@@ -11,12 +11,16 @@ import {
   DialogClose,
 } from "@fungi.computer/caps/components/dialog";
 import { Parakeet } from "@fungi.computer/parakeet";
+import type { AppRoot } from "@fungi.computer/agar";
+import { showConversationToast } from "./conversation-toast.js";
 import type { useWebsiteInbox } from "./website-inbox.js";
 
 export function WebsiteConversation({
   inbox,
+  ui,
 }: {
   inbox: ReturnType<typeof useWebsiteInbox>;
+  ui: AppRoot["ui"] | null;
 }) {
   const { selected, session, action, canManage, openingError } = inbox;
   const [confirmation, setConfirmation] = useState<Readonly<{
@@ -28,6 +32,15 @@ export function WebsiteConversation({
   useEffect(() => {
     setConfirmation(null);
   }, [selected?.bindingId, selected?.conversation.sessionId, canManage]);
+  const actionError = action.error;
+  useEffect(() => {
+    if (actionError === null) return;
+    showConversationToast(ui, {
+      variant: "error",
+      message:
+        "This conversation changed or website access was removed. Refresh and try again.",
+    });
+  }, [actionError, ui]);
   if (selected === undefined) return null;
   const conversation = selected.conversation;
   return (
@@ -121,12 +134,6 @@ export function WebsiteConversation({
         <p className="p-3 text-sm">
           Allow takeover in Grove's App permissions to reply. Your Team
           permissions still apply.
-        </p>
-      ) : null}
-      {action.isError ? (
-        <p role="alert" className="p-2 text-sm text-error">
-          This conversation changed or website access was removed. Refresh and
-          try again.
         </p>
       ) : null}
       {openingError ? (

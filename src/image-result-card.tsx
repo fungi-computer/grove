@@ -1,10 +1,11 @@
 import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
 import { Button } from "@fungi.computer/caps/components/button";
-import type { CapabilityDirectory } from "@fungi.computer/agar";
+import type { AppRoot, CapabilityDirectory } from "@fungi.computer/agar";
 import { openApp } from "@fungi.computer/agar/apps";
 import type { ParakeetToolItem } from "@fungi.computer/parakeet";
 import { useState } from "react";
+import { showConversationToast } from "./conversation-toast.js";
 import { z } from "zod";
 
 /**
@@ -87,16 +88,16 @@ function PrintsResultAction({
   printId,
   pictures,
   capabilities,
+  ui,
 }: {
   printId: string;
   pictures: readonly { data: string; mimeType: string }[];
   capabilities: CapabilityDirectory;
+  ui: AppRoot["ui"];
 }): React.JSX.Element {
   const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
   const open = async () => {
     setPending(true);
-    setFailed(false);
     try {
       await openApp(capabilities, {
         role: "media",
@@ -107,7 +108,10 @@ function PrintsResultAction({
       });
     } catch (cause) {
       console.error("Chat print navigation failed", cause);
-      setFailed(true);
+      showConversationToast(ui, {
+        variant: "error",
+        message: "Prints could not be opened. Try again.",
+      });
     } finally {
       setPending(false);
     }
@@ -133,9 +137,6 @@ function PrintsResultAction({
       >
         {pending ? "Opening Prints…" : "Open in Prints"}
       </Button>
-      {failed ? (
-        <p role="alert">Prints could not be opened. Try again.</p>
-      ) : null}
     </div>
   );
 }
@@ -143,9 +144,11 @@ function PrintsResultAction({
 export function ImageResultCard({
   item,
   capabilities,
+  ui,
 }: {
   item: ParakeetToolItem;
   capabilities?: CapabilityDirectory | undefined;
+  ui: AppRoot["ui"];
 }): React.JSX.Element | null {
   const panels = printsPanels(item);
   if (panels && capabilities) {
@@ -169,6 +172,7 @@ export function ImageResultCard({
                   : []
             }
             capabilities={capabilities}
+            ui={ui}
           />
         ))}
       </>

@@ -1,5 +1,18 @@
 # @fungi.computer/grove
 
+## 0.13.12
+
+### Patch Changes
+
+- Changes since 0.13.11:
+
+  - fix(parakeet): make composer keys 44px touch targets on phones
+  - fix(grove): use fixed copy for the failed delete toast
+  - fix(grove): show chat action failures as toasts
+
+- Updated dependencies
+  - @fungi.computer/parakeet@0.11.38
+
 ## 0.13.11
 
 ### Patch Changes

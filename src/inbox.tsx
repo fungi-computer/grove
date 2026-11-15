@@ -97,6 +97,7 @@ import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
 import { ModelSetup } from "./model-setup.js";
 import { starterPrompts } from "./starters.js";
 import { InboxList } from "./inbox-list.js";
+import { showConversationToast } from "./conversation-toast.js";
 import { useWebsiteInbox } from "./website-inbox.js";
 import {
   createConversationOpeningOwner,
@@ -397,6 +398,13 @@ function ConnectedInbox({
       return withAgentClient(connection, target.agentId, services, (client) =>
         client.deleteSession(target.sessionId),
       );
+    },
+    onError: () => {
+      if (!connection) return;
+      showConversationToast(connection.ui, {
+        variant: "error",
+        message: "The conversation could not be deleted. Try again.",
+      });
     },
     onSuccess: (_deleted, target) => {
       if (
@@ -1435,9 +1443,6 @@ function ConnectedInbox({
                   </Button>
                 </section>
               ) : null}
-              {deleteMutation.error ? (
-                <Alert tone="error" title={deleteMutation.error.message} />
-              ) : null}
               {error ? (
                 <Alert
                   className="inbox-error"
@@ -1557,7 +1562,7 @@ function ConnectedInbox({
         {openConversation || websites.selected ? startFailureNotice : null}
         {websites.selected ? (
           <Suspense fallback={null}>
-            <WebsiteConversation inbox={websites} />
+            <WebsiteConversation inbox={websites} ui={connection?.ui ?? null} />
           </Suspense>
         ) : openConversation ? (
           <Conversation
