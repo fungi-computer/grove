@@ -1,5 +1,23 @@
 # @fungi.computer/grove
 
+## 0.15.0
+
+### Minor Changes
+
+- Changes since 0.14.4:
+
+  - feat(apps): require one host-derived caller scope
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.20.0
+  - @fungi.computer/shiitake@0.20.0
+  - @fungi.computer/parakeet@0.12.5
+  - @fungi.computer/shiitake-extensions@0.11.5
+  - @fungi.computer/knapsack@0.4.16
+
 ## 0.14.4
 
 ### Patch Changes
