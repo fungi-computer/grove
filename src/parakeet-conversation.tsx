@@ -23,8 +23,7 @@ import type {
 } from "@fungi.computer/parakeet/headless";
 import { FileResultAction } from "./file-result-action.js";
 import { claimsPrintsPanel, ImageResultCard } from "./image-result-card.js";
-import { ApprovalRow } from "./approval-card.js";
-import { ApprovalOwners, pendingApprovalId } from "./approval-owners.js";
+import { ApprovalOwners } from "./approval-owners.js";
 import { GameShareCard, gameShareDisplayText } from "./game-share-card.js";
 import "@fungi.computer/stipe/fonts-mono.css";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -124,9 +123,6 @@ export function ParakeetConversation({
   );
   const renderToolActions = useCallback(
     (item: ParakeetToolItem) => {
-      const recordId = pendingApprovalId(item);
-      if (recordId !== undefined && capabilities !== undefined)
-        return <ApprovalRow key={recordId} recordId={recordId} />;
       return ui ? (
         <>
           <FileResultAction item={item} ui={ui} />
@@ -157,8 +153,10 @@ export function ParakeetConversation({
     >
       <ComposeDraft prefill={prefill} onPrefilled={onPrefilled} />
       <ApprovalOwners
+        key={draftIdentity.sessionId}
         capabilities={capabilities}
         agentId={draftIdentity.agentId}
+        sessionId={draftIdentity.sessionId}
       >
         <ParakeetView
           onLink={onLink}
