@@ -2,7 +2,6 @@ import { approvals } from "@fungi.computer/agar/approvals";
 import type { CapabilityDirectory } from "@fungi.computer/agar";
 import {
   MAX_APPROVAL_DENIAL_NOTE_LENGTH,
-  PendingApprovalSchema,
   type ApprovalView,
 } from "@fungi.computer/approvals";
 import {
@@ -10,14 +9,9 @@ import {
   useParakeetInteractions,
   useTimeline,
   type ApprovalSource,
-  type ParakeetToolItem,
 } from "@fungi.computer/parakeet/headless";
-import * as Option from "effect/Option";
-import * as Schema from "effect/Schema";
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -25,46 +19,61 @@ import {
   type ReactNode,
 } from "react";
 
-const decodePendingApproval = Schema.decodeUnknownOption(
-  Schema.fromJsonString(PendingApprovalSchema),
-  { onExcessProperty: "error" },
-);
+/** How often a running tool call is asked what it is waiting on. */
+const POLL_MS = 2000;
 
-/** The record a settled tool result points at, when it is a pending approval. */
-export function pendingApprovalId(item: ParakeetToolItem): string | undefined {
-  if (item.status !== "completed" || item.result?.isError) return undefined;
-  for (const part of item.result?.content ?? []) {
-    if (part.type !== "text") continue;
-    const pending = decodePendingApproval(part.text);
-    if (Option.isSome(pending)) return pending.value.recordId;
-  }
-  return undefined;
-}
-
-/** What Grove currently knows about one approval its owner can read. */
-type ApprovalEntry = Readonly<{
-  /** The owner's current view; null when the owner no longer exposes it. */
-  view: ApprovalView | null;
-  /** Reading it failed. */
-  failed: boolean;
-}>;
-
-/** What tool rows read from the approvals the conversation owns. */
-export type ApprovalOwnersApi = Readonly<{
-  entry: (
-    recordId: string,
-  ) => Readonly<{ view: ApprovalView | null; failed: boolean }> | undefined;
-  /** Read the record again from its owner. */
-  refresh: (recordId: string) => void;
-  /** The policy scope an approval's family rule would apply to. */
-  agentId: string;
-}>;
-
-const OwnersContext = createContext<ApprovalOwnersApi | undefined>(undefined);
-
-/** Grove's approval owners: what the tool rows show about each pending record. */
-export function useApprovalOwners(): ApprovalOwnersApi | undefined {
-  return useContext(OwnersContext);
+/**
+ * The records this Agent's running tool calls are waiting on. A call that
+ * needs approval stays open, so no tool result names its record: the owner
+ * lists the pending records while any call is running and once more when the
+ * last one ends.
+ */
+function useWaitingRecordIds(
+  capabilities: CapabilityDirectory | undefined,
+  agentId: string,
+  sessionId: string,
+  running: boolean,
+): readonly string[] {
+  const [ids, setIds] = useState<readonly string[]>([]);
+  useEffect(() => {
+    if (capabilities === undefined) {
+      setIds([]);
+      return;
+    }
+    const directory = capabilities;
+    let active = true;
+    async function read() {
+      try {
+        const page = await directory
+          .require(approvals)
+          .list({ state: "pending", limit: 100 });
+        const next = page.items
+          .filter(
+            (view) =>
+              view.record.requester.agentId === agentId &&
+              view.record.requester.sessionId === sessionId,
+          )
+          .map((view) => view.record.recordId);
+        if (active)
+          setIds((current) =>
+            current.join() === next.join() ? current : next,
+          );
+      } catch (cause) {
+        console.warn("Grove could not list pending approvals", cause);
+      }
+    }
+    void read();
+    if (!running)
+      return () => {
+        active = false;
+      };
+    const timer = setInterval(() => void read(), POLL_MS);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [capabilities, agentId, sessionId, running]);
+  return ids;
 }
 
 const answerFailure =
@@ -77,30 +86,22 @@ const answerFailure =
  */
 function ApprovalOwner({
   recordId,
-  attempt,
   capabilities,
   agentId,
-  publish,
 }: Readonly<{
   recordId: string;
-  attempt: number;
   capabilities: CapabilityDirectory;
   agentId: string;
-  publish: (recordId: string, entry: ApprovalEntry) => void;
 }>) {
   const store = useParakeetInteractions();
   const [view, setView] = useState<ApprovalView | null>();
   const latest = useRef<ApprovalView | undefined>(undefined);
   const listeners = useRef(new Set<() => void>());
-  const show = useCallback(
-    (next: ApprovalView | null) => {
-      latest.current = next ?? undefined;
-      setView(next);
-      publish(recordId, { view: next, failed: false });
-      for (const listener of listeners.current) listener();
-    },
-    [publish, recordId],
-  );
+  const show = useCallback((next: ApprovalView | null) => {
+    latest.current = next ?? undefined;
+    setView(next);
+    for (const listener of listeners.current) listener();
+  }, []);
   useEffect(() => {
     // Never carry a previous holder's metadata across a capability replacement.
     latest.current = undefined;
@@ -114,19 +115,19 @@ function ApprovalOwner({
         if (active) show(next);
       } catch (cause) {
         console.warn("Grove could not read the approval", cause);
-        if (active) publish(recordId, { view: null, failed: true });
       }
     }
     void read();
     return () => {
       active = false;
     };
-  }, [capabilities, recordId, attempt, show, publish]);
+  }, [capabilities, recordId, show]);
   const answerable =
     view?.canAnswer === true && view.record.state === "pending";
   const family = view?.canSetAutoApprove === true;
   const module = view?.record.module;
   const access = view?.record.access;
+  const appName = view?.record.description.app?.displayName ?? "this App";
   const source = useMemo<ApprovalSource | undefined>(() => {
     if (!answerable) return undefined;
     return {
@@ -162,7 +163,7 @@ function ApprovalOwner({
         !family || module === undefined || access === undefined
           ? undefined
           : {
-              label: "Always approve this family",
+              label: `Always allow ${appName} to ${access === "write" ? "change data" : "act outside Fungi"}`,
               enable: async () => {
                 const result = await capabilities
                   .require(approvals)
@@ -175,7 +176,16 @@ function ApprovalOwner({
               },
             },
     };
-  }, [answerable, capabilities, agentId, family, module, access, show]);
+  }, [
+    answerable,
+    capabilities,
+    agentId,
+    family,
+    module,
+    access,
+    appName,
+    show,
+  ]);
   useApprovalAwaiting({
     source,
     store,
@@ -193,68 +203,45 @@ function reportAnswerFailure(cause: unknown) {
 }
 
 /**
- * Own every pending approval the conversation lists: each is read from its
- * member-bound owner and put in the composer's queue. Tool rows only show
- * what is known about them.
+ * Own every approval a running tool call waits on: each is read from its
+ * member-bound owner and put in the composer's queue, where the question is
+ * asked. A card disappears when its call ends or expires.
  */
 export function ApprovalOwners({
   capabilities,
   agentId,
+  sessionId,
   children,
 }: Readonly<{
   capabilities: CapabilityDirectory | undefined;
   agentId: string;
+  sessionId: string;
   children: ReactNode;
 }>) {
   const timeline = useTimeline();
-  const ids = useMemo(() => {
-    const found = new Set<string>();
-    for (const item of [...timeline.settled, ...timeline.tail])
-      if (item.kind === "tool_group")
-        for (const tool of item.tools) {
-          const id = pendingApprovalId(tool);
-          if (id !== undefined) found.add(id);
-        }
-    return [...found];
-  }, [timeline.settled, timeline.tail]);
-  const [entries, setEntries] = useState<ReadonlyMap<string, ApprovalEntry>>(
-    new Map(),
+  const running = useMemo(
+    () =>
+      [...timeline.settled, ...timeline.tail].some(
+        (item) =>
+          item.kind === "tool_group" &&
+          item.tools.some((tool) => tool.status === "running"),
+      ),
+    [timeline.settled, timeline.tail],
   );
-  const [attempts, setAttempts] = useState<ReadonlyMap<string, number>>(
-    new Map(),
-  );
-  const publish = useCallback((recordId: string, entry: ApprovalEntry) => {
-    setEntries((current) => new Map(current).set(recordId, entry));
-  }, []);
-  const owners = useMemo<ApprovalOwnersApi>(
-    () => ({
-      entry: (recordId) => entries.get(recordId),
-      refresh: (recordId) => {
-        setAttempts((current) =>
-          new Map(current).set(recordId, (current.get(recordId) ?? 0) + 1),
-        );
-      },
-      agentId,
-    }),
-    [entries, agentId],
-  );
+  const ids = useWaitingRecordIds(capabilities, agentId, sessionId, running);
   return (
-    <OwnersContext.Provider
-      value={capabilities === undefined ? undefined : owners}
-    >
+    <>
       {capabilities === undefined
         ? null
         : ids.map((recordId) => (
             <ApprovalOwner
               key={recordId}
               recordId={recordId}
-              attempt={attempts.get(recordId) ?? 0}
               capabilities={capabilities}
               agentId={agentId}
-              publish={publish}
             />
           ))}
       {children}
-    </OwnersContext.Provider>
+    </>
   );
 }
