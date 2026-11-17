@@ -1,4 +1,3 @@
-import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import type { AppRoot } from "@fungi.computer/agar";
 import {
   agentList,
@@ -24,8 +23,9 @@ import {
   queryKeys,
   useMemberInbox,
 } from "@fungi.computer/agar/query";
+import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /** The host owns directory and inbox data; Query owns their shared lifetime. */
 export function useInboxData(app: AppRoot | null) {
@@ -40,24 +40,41 @@ export function useInboxData(app: AppRoot | null) {
     ...capabilityQuery(app, agentList, directoryKey, (handle) => handle.list()),
     enabled: app?.capabilities.has(agentList) === true,
   });
-  const knownAgents = new Set(directory.data?.map((agent) => agent.agentId));
-  const unknownAgents = !directory.isSuccess
-    ? "[]"
-    : JSON.stringify(
-        [
-          ...new Set(
-            inbox.items
-              .filter((item): item is MemberInboxSession => !("kind" in item))
-              .map((item) => item.agentId),
-          ),
-        ]
-          .filter((agentId) => !knownAgents.has(agentId))
-          .sort(),
-      );
   const { refetch } = directory;
+  const previousActivity = useRef<{ app: AppRoot; key: string } | null>(null);
+  // An Agent can change its own identity during a turn. The Inbox's existing
+  // pushed transitions refresh the same directory Query a person's rename
+  // updates; known Agents need that refresh too. No second cache or polling.
   useEffect(() => {
-    if (unknownAgents !== "[]" && inbox.items.length > 0) void refetch();
-  }, [unknownAgents, inbox.items, refetch]);
+    if (app === null || !directory.isSuccess || inbox.status !== "live") return;
+    const sessions = inbox.items.filter(
+      (item): item is MemberInboxSession => !("kind" in item),
+    );
+    if (sessions.length === 0) return;
+    // Visits change the Inbox too, but cannot change Agent identity.
+    const key = JSON.stringify(
+      sessions.map((item) => [
+        item.agentId,
+        item.sessionId,
+        item.state,
+        "lastActivityAt" in item ? item.lastActivityAt : null,
+      ]),
+    );
+    const changed =
+      previousActivity.current?.app === app &&
+      previousActivity.current.key !== key;
+    previousActivity.current = { app, key };
+    const knownAgents = new Set(directory.data.map((agent) => agent.agentId));
+    if (changed || sessions.some((item) => !knownAgents.has(item.agentId)))
+      void refetch();
+  }, [
+    app,
+    directory.isSuccess,
+    directory.data,
+    inbox.status,
+    inbox.items,
+    refetch,
+  ]);
   // The Team Computers New Agent offers, newest first; null when the host
   // makes no creation-time Computer choice.
   const computerChoicesKey = queryKeys.of(app, "agent-computers");

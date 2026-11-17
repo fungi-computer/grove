@@ -25,6 +25,7 @@ const stateTones = {
 
 /** The ordinary listInbox method supplies this projection in the same read frame. */
 export const inboxGill = defineAppGill({
+  view: "rows",
   id: "inbox",
   title: "Inbox",
   source: "listInbox",

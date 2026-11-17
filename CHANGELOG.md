@@ -1,5 +1,26 @@
 # @fungi.computer/grove
 
+## 0.16.0
+
+### Minor Changes
+
+- Changes since 0.15.0:
+
+  - feat(agents): let an Agent rename itself and change its own avatar
+  - feat(gills): declare surface Gills beside row Gills
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.21.0
+  - @fungi.computer/gills@0.4.0
+  - @fungi.computer/parakeet@0.13.0
+  - @fungi.computer/shiitake@0.20.1
+  - @fungi.computer/shiitake-extensions@0.11.6
+  - @fungi.computer/knapsack@0.4.17
+
 ## 0.15.0
 
 ### Minor Changes
