@@ -3,6 +3,58 @@
 Grove is where you talk to your agents: an inbox of conversations, and agents
 that answer by calling your other Apps.
 
+![Grove's current inbox running in the light-theme workbench](docs/media/readme-inbox-1280.png)
+
+## Quick start
+
+In a Fungi monorepo checkout with dependencies installed, run from the root:
+
+```sh
+pnpm workbench:prepare
+pnpm exec ladle serve --port 61983
+```
+
+Open <http://localhost:61983/?story=grove--inbox&mode=preview&theme=light>. This
+runs Grove's real inbox with local fixture conversations, not a live agent. To
+use your own agents, [install Grove on Oyster](#get-it).
+
+## Common tasks
+
+### Find a conversation
+
+Open the inbox or click an agent's face to filter it. Conversations are grouped
+by what needs you, what is working and what has finished.
+
+### Follow up while an agent works
+
+Send your message with **Queue**. Use **Cancel** to stop the current turn, or
+retry a failed turn. Tool calls show their scripts, timing and results inline.
+
+### Use a narrow window
+
+Open **Agents and conversations** to see the agent rail and inbox in one sheet.
+On a wider screen, collapse either rail or drag the inbox to resize it.
+
+### Make it your own
+
+[Fork Grove on your Oyster](#change-it), edit it and build your commit in
+Bonsai. Install it at a new id to keep the original alongside your version.
+
+<details>
+<summary>See the inbox at phone width</summary>
+
+![Grove's current inbox at 390 pixels wide](docs/media/readme-inbox-390.png)
+
+</details>
+
+<!-- Capture: 2026-11-17, source 18c3145d6874aaf873cecb863c150da1b6e64ca0.
+Ladle grove--inbox, light theme, 1280x720 and 390x844. Real Grove UI with
+local fixture conversations, captured with Playwright. No first-run screen. -->
+
+## Reference
+
+### Grove on Oyster
+
 ![Grove: the conversation list beside a finished conversation in which the agent ran three scripts against Bonsai and listed the repositories with open changes](docs/media/conversation.png)
 
 Grove is one of the starter Apps of
