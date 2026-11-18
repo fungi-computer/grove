@@ -6,7 +6,7 @@ import {
 
 /**
  * A local stand-in for the host's App storage, member layer only, with the
- * host's revision compare-and-set. Two Grove frames given the same fixture
+ * host's revision compare-and-set and claim. Two Grove frames given the same fixture
  * share it the way two frames of one member share the real store.
  */
 export function createFixtureMemberStorage(): AppStorage {
@@ -40,6 +40,14 @@ export function createFixtureMemberStorage(): AppStorage {
         admit(key, basedOn);
         layers.delete(key);
         return { revision: ++revision };
+      }),
+    claim: ({ key, scope, value }) =>
+      Promise.resolve().then(() => {
+        if (scope !== "member") throw new AppStorageError("owner_required");
+        const current = layers.get(key);
+        if (current !== undefined) return { ...current, claimed: false };
+        layers.set(key, { value, revision: ++revision });
+        return { value, revision, claimed: true };
       }),
     watch: () => Promise.reject(new Error("The fixture has no watch")),
   };

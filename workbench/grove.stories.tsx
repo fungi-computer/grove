@@ -41,6 +41,8 @@ function savedLayoutStorage(saved: GroveLayout): AppStorage {
       }),
     write: () => Promise.resolve({ revision: 2 }),
     reset: () => Promise.resolve({ revision: 2 }),
+    claim: ({ value }) =>
+      Promise.resolve({ value, revision: 2, claimed: true }),
     watch: () => Promise.reject(new Error("The workbench does not watch")),
   };
 }

@@ -1,5 +1,21 @@
 # @fungi.computer/grove
 
+## 0.19.0
+
+### Minor Changes
+
+- Changes since 0.18.1:
+
+  - feat(agar): claim an absent App storage layer in every host
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/agar@0.23.0
+  - @fungi.computer/parakeet@0.14.2
+  - @fungi.computer/shiitake@0.21.2
+  - @fungi.computer/shiitake-extensions@0.11.12
+
 ## 0.18.1
 
 ### Patch Changes
