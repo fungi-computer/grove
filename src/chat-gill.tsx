@@ -1,7 +1,12 @@
 import type { AppIdentity, AppRoot } from "@fungi.computer/agar";
-import { agentSessionWrite, type AppAgent } from "@fungi.computer/agar/agents";
+import {
+  agentManage,
+  agentSessionWrite,
+  type AppAgent,
+} from "@fungi.computer/agar/agents";
 import { appsOpen, type AppOpenInput } from "@fungi.computer/agar/apps";
 import { queryKeys } from "@fungi.computer/agar/query";
+import { appStorage } from "@fungi.computer/agar/storage";
 import { useAppContext } from "@fungi.computer/agar/react";
 import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
 import { Button } from "@fungi.computer/caps/components/button";
@@ -36,12 +41,14 @@ import {
   Conversation,
   InboxApp,
   defaultServices,
+  groveAgentAccess,
   sessionCreateRequests,
   withAgentClient,
   type InboxServices,
 } from "./inbox.js";
 import { agentLabel, buildInboxView } from "./inbox-model.js";
 import { useInboxData } from "./queries.js";
+import { firstSessionRequestId } from "./first-session.js";
 import { useWebsiteInbox } from "./website-inbox.js";
 
 /** The "what kind of person are you" openers; each sends as written. */
@@ -224,6 +231,7 @@ function ChatGill({
       item.sessionOperations.includes("agent.manage"),
   );
   const canWrite = connection?.capabilities.has(agentSessionWrite) ?? false;
+  const canManage = connection?.capabilities.has(agentManage) ?? false;
   const view = useMemo(
     () =>
       connection === null
@@ -274,12 +282,21 @@ function ChatGill({
       if (!request.accepted || request.ticket === null) return;
       setStartFailed(false);
       try {
+        const generate = () => sessionCreateRequests.request.generate();
+        // The automatic first conversation shares one request with Grove's
+        // window, so the two frames never make two Sessions.
+        const requestId =
+          cause === "auto" && connection.capabilities.has(appStorage)
+            ? await firstSessionRequestId(
+                connection.capabilities.require(appStorage),
+                generate,
+              )
+            : generate();
         const sessionId = await withAgentClient(
           connection,
           agent.agentId,
           services,
-          (client) =>
-            client.createSession(sessionCreateRequests.request.generate()),
+          (client) => client.createSession(requestId),
         );
         view.created(request.ticket, { agentId: agent.agentId, sessionId });
         // Creation can beat the visibility feed; reload the owner snapshot.
@@ -374,11 +391,65 @@ function ChatGill({
         message={connection ? "Getting ready…" : "Connecting…"}
       />
     );
+  else if (agents.length === 0 && canManage)
+    // The Hub offers an owner their starter Agent while it reads the
+    // directory, so an empty directory here means the starter was refused.
+    body = (
+      <div className="m-auto flex max-w-[24rem] flex-col items-center gap-sm px-md text-center">
+        <p className="text-sm font-semibold">Shiitake isn’t ready yet</p>
+        <p className="text-sm text-dim">
+          Your first Agent couldn’t be set up. Try again, or check your Team’s
+          credit.
+        </p>
+        <div className="flex flex-wrap justify-center gap-sm">
+          <Button
+            loading={directory.isFetching}
+            size="sm"
+            onClick={() => {
+              void directory.refetch();
+            }}
+          >
+            Try again
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              void connection.ui.openTeamBilling().catch((cause: unknown) => {
+                console.error(
+                  "Grove chat widget could not open billing",
+                  cause,
+                );
+              });
+            }}
+          >
+            Open billing
+          </Button>
+        </div>
+      </div>
+    );
   else if (agent === undefined || !canWrite)
     body = (
-      <p className="m-auto max-w-[22rem] px-md text-center text-sm text-dim">
-        Open Grove to set up an Agent and allow it to chat.
-      </p>
+      <div className="m-auto flex max-w-[24rem] flex-col items-center gap-sm px-md text-center">
+        <p className="text-sm text-dim">
+          Allow Grove to chat with your Agent here.
+        </p>
+        <Button
+          size="sm"
+          onClick={() => {
+            void connection.ui
+              .requestAppPermissions({ agents: groveAgentAccess })
+              .catch((cause: unknown) => {
+                console.error(
+                  "Grove chat widget permission request failed",
+                  cause,
+                );
+              });
+          }}
+        >
+          Allow Agent access
+        </Button>
+      </div>
     );
   else
     body = (

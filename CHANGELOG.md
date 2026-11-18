@@ -1,5 +1,25 @@
 # @fungi.computer/grove
 
+## 0.18.0
+
+### Minor Changes
+
+- Changes since 0.17.1:
+
+  - fix(grove): give the chat widget a plain next step when it cannot chat
+  - fix(grove): open one first conversation when the chat widget and Grove start
+    together
+  - feat(grove): drop the Name your first Agent step for an owner's first run
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/parakeet@0.14.0
+  - @fungi.computer/shiitake@0.21.0
+  - @fungi.computer/knapsack@0.4.20
+  - @fungi.computer/shiitake-extensions@0.11.10
+
 ## 0.17.1
 
 ### Patch Changes

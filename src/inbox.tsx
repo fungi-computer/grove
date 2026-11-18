@@ -61,6 +61,7 @@ import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useAppContext, useWindowStatus } from "@fungi.computer/agar/react";
 import { queryKeys } from "@fungi.computer/agar/query";
 import { appStorage } from "@fungi.computer/agar/storage";
+import { firstSessionRequestId } from "./first-session.js";
 import {
   useInboxData,
   useAgentInstructions,
@@ -148,7 +149,8 @@ export const defaultServices: InboxServices = {
 };
 
 /** Grove asks its host for these; the host bounds and grants them. */
-const groveAgentAccess: readonly AgentAccessOperation[] = [
+/** The Agent operations Grove asks for so it can list Agents and chat with them. */
+export const groveAgentAccess: readonly AgentAccessOperation[] = [
   "agent.list",
   "agent.manage",
   "agent.read",
@@ -483,14 +485,14 @@ function ConnectedInbox({
   const selectedSessionId = openConversation?.sessionId ?? null;
   const [creation, setCreation] = useState<"agent" | "session" | null>(null);
   const dialogReturnFocus = useRef<HTMLElement | null>(null);
-  const layoutStorage = useMemo(
+  const memberStorage = useMemo(
     () =>
       connection?.capabilities.has(appStorage)
         ? connection.capabilities.require(appStorage)
         : undefined,
     [connection],
   );
-  const [layout, setLayout] = useGroveLayout(layoutStorage);
+  const [layout, setLayout] = useGroveLayout(memberStorage);
   const { agentRailOpen, listRailOpen, listWidth } = layout;
   const setAgentRailOpen = (open: (current: boolean) => boolean) => {
     setLayout((current) => ({
@@ -692,15 +694,22 @@ function ConnectedInbox({
       const request = conversationView.create(cause);
       if (!request.accepted || request.ticket === null) return undefined;
       setConversationError(null);
-      const intent =
-        sessionCreateIntent.current?.agentId === agentId
-          ? sessionCreateIntent.current
-          : {
-              agentId,
-              requestId: sessionCreateRequests.request.generate(),
-            };
-      sessionCreateIntent.current = intent;
       try {
+        // Grove's own first conversation shares one request with the chat
+        // widget, so the two frames never make two Sessions.
+        const intent =
+          sessionCreateIntent.current?.agentId === agentId
+            ? sessionCreateIntent.current
+            : {
+                agentId,
+                requestId:
+                  cause === "auto" && memberStorage !== undefined
+                    ? await firstSessionRequestId(memberStorage, () =>
+                        sessionCreateRequests.request.generate(),
+                      )
+                    : sessionCreateRequests.request.generate(),
+              };
+        sessionCreateIntent.current = intent;
         const sessionId = await startMutation.mutateAsync(intent);
         // The loaded member inbox owns the new row and resumes its feed.
         // A Session another choice has since superseded is simply not shown.
@@ -740,6 +749,7 @@ function ConnectedInbox({
       connection,
       conversationShown,
       conversationView,
+      memberStorage,
       startingAgentId,
       startMutation.isError,
       startMutation.mutateAsync,
@@ -1247,6 +1257,24 @@ function ConnectedInbox({
     };
   }, [connection, canCreateAgent, openCreation]);
 
+  // The Hub offers an owner their starter Agent while it reads the directory,
+  // so an owner whose directory still comes back empty was refused it.
+  const starterRefused =
+    connection !== null &&
+    canCreateAgent &&
+    !directoryLoading &&
+    !modelsMissing &&
+    !error &&
+    agents.length === 0;
+  const starterPending = directory.isFetching;
+  useEffect(() => {
+    if (starterRefused)
+      showConversationToast(connection.ui, {
+        variant: "error",
+        message: "Your first Agent couldn't be set up.",
+      });
+  }, [starterRefused, connection]);
+
   const failedStart = startMutation.isError ? startMutation.variables : null;
   const startFailureNotice =
     failedStart && creation !== "session" && !conversationShown ? (
@@ -1639,7 +1667,13 @@ function ConnectedInbox({
           <LoadingState
             className="m-auto"
             framed={false}
-            message={connection ? "Loading Agents…" : "Connecting to Oyster…"}
+            message={
+              connection
+                ? canCreateAgent
+                  ? "Getting Shiitake ready…"
+                  : "Loading Agents…"
+                : "Connecting to Oyster…"
+            }
           />
         ) : modelsMissing && (agents.length > 0 || canCreateAgent) ? (
           <ModelSetup
@@ -1654,7 +1688,7 @@ function ConnectedInbox({
           <EmptyState
             className="inbox-empty m-auto max-w-[28rem]"
             variant="speech"
-            thinking={creatingAgent}
+            thinking={starterPending}
             renderVisual={({ speaking, thinking }) => (
               <ShiitakeAvatar
                 className="h-full w-full"
@@ -1669,22 +1703,31 @@ function ConnectedInbox({
               />
             )}
             title={
-              canCreateAgent ? "Meet your first Agent" : "Welcome to Grove"
+              canCreateAgent ? "Shiitake isn't ready yet" : "Welcome to Grove"
             }
             description={
               canCreateAgent
-                ? "An Agent is an AI helper. Name one to chat, write and make things together."
+                ? "Your first Agent couldn't be set up. Try again, or check your Team's credit."
                 : "Let Grove find your AI helpers, create new ones, and open conversations. Your Team controls this access."
             }
             actions={
               canCreateAgent ? (
-                <Button
-                  onClick={() => {
-                    openCreation("agent");
-                  }}
-                >
-                  Name your first Agent
-                </Button>
+                <>
+                  <Button
+                    loading={starterPending}
+                    onClick={() => {
+                      void directory.refetch();
+                    }}
+                  >
+                    Retry
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => void connection.ui.openTeamBilling()}
+                  >
+                    Open billing
+                  </Button>
+                </>
               ) : (
                 <Button onClick={requestAgentAccess}>Allow Agent access</Button>
               )
