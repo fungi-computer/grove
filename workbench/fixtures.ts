@@ -131,6 +131,7 @@ export type GroveScenario =
   | "start-failed"
   | "start-failed-open"
   | "empty"
+  | "starter"
   | "no-agents"
   | "unfunded"
   | "no-agent-access"
@@ -140,6 +141,7 @@ export type GroveScenario =
   | "row-states"
   | "live"
   | "stable-inbox"
+  | "two-frames"
   | "open-error"
   | "baseline-error"
   | "disconnected"
@@ -196,6 +198,7 @@ const listStates = new Map<GroveScenario, ReadonlyMap<string, ListState>>([
   ],
   ["all-clear", new Map<string, ListState>()],
   ["stable-inbox", new Map<string, ListState>()],
+  ["two-frames", new Map<string, ListState>()],
 ]);
 
 type PreviewStatus = "idle" | "thinking" | "queued";
@@ -324,7 +327,7 @@ function previewSession(
     cursor: "preview:1",
     hasMore: false,
     messages:
-      scenario === "conversation-empty"
+      scenario === "conversation-empty" || scenario === "starter"
         ? []
         : [
             {
@@ -913,29 +916,47 @@ function previewSession(
         },
       };
   }
-  let closeWatch: (() => void) | undefined;
-  let closed = false;
-  const frames: SessionFrame[] = [];
+  // Each watcher has its own queue, so two frames of one Grove (a dashboard
+  // tile and the full window) can follow the same Session.
+  type Watcher = { frames: SessionFrame[]; wake?: () => void; closed: boolean };
+  const watchers = new Set<Watcher>();
   const publish = () => {
-    frames.push({
-      kind: "reset",
-      reason: "history_unavailable",
-      cursor: snapshot.cursor,
-      baseline: snapshot,
-    });
-    closeWatch?.();
+    for (const watcher of watchers) {
+      watcher.frames.push({
+        kind: "reset",
+        reason: "history_unavailable",
+        cursor: snapshot.cursor,
+        baseline: snapshot,
+      });
+      watcher.wake?.();
+    }
   };
-  async function* changes(): AsyncGenerator<SessionFrame> {
-    while (!closed) {
-      if (frames.length === 0)
-        await new Promise<void>((resolve) => {
-          closeWatch = resolve;
-        });
-      while (frames.length > 0) {
-        const frame = frames.shift();
-        if (frame) yield frame;
+  function listen() {
+    const watcher: Watcher = { frames: [], closed: false };
+    watchers.add(watcher);
+    async function* changes(): AsyncGenerator<SessionFrame> {
+      try {
+        while (!watcher.closed) {
+          if (watcher.frames.length === 0)
+            await new Promise<void>((resolve) => {
+              watcher.wake = resolve;
+            });
+          while (watcher.frames.length > 0) {
+            const frame = watcher.frames.shift();
+            if (frame) yield frame;
+          }
+        }
+      } finally {
+        watchers.delete(watcher);
       }
     }
+    return {
+      changes: changes(),
+      close: () => {
+        watcher.closed = true;
+        watcher.wake?.();
+      },
+    };
   }
   let refuseAdmission: ((reason: Error) => void) | undefined;
   let heldAdmission = false;
@@ -1126,7 +1147,8 @@ function previewSession(
     if (input.type === "fork" && scenario === "fork") return forkAt(input);
     if (input.type === "prompt") {
       if (modelsQueue) return admitQueued(input);
-      if (scenario === "stable-inbox") return replyInInbox(input);
+      if (scenario === "stable-inbox" || scenario === "two-frames")
+        return replyInInbox(input);
     }
     return previewCommand(input);
   }
@@ -1173,17 +1195,18 @@ function previewSession(
       },
     },
     read: () => Promise.resolve(snapshot),
-    subscribe: changes,
-    watch: () =>
-      Promise.resolve({
+    subscribe: () => listen().changes,
+    watch: () => {
+      const watcher = listen();
+      return Promise.resolve({
         snapshot,
-        changes: changes(),
+        changes: watcher.changes,
         close: () => {
-          closed = true;
-          closeWatch?.();
+          watcher.close();
           return Promise.resolve();
         },
-      }),
+      });
+    },
   };
 }
 
@@ -1215,6 +1238,7 @@ export function createGroveFixture(
     scenario === "conversation-queued"
       ? "queued"
       : scenario === "conversation-empty" ||
+          scenario === "two-frames" ||
           scenario === "conversation-answered-inbox-lag" ||
           scenario === "conversation-failed" ||
           scenario === "failed-turn-retry" ||
@@ -1401,6 +1425,14 @@ export function createGroveFixture(
       sessionOperations,
     },
   ];
+  // A new Team's first Agent: the Hub starter, in the mushroom's own look.
+  if (scenario === "starter")
+    agents.splice(0, agents.length, {
+      agentId: "shiitake",
+      name: "Shiitake",
+      avatar: seededAvatar("shiitake"),
+      sessionOperations,
+    });
   const now = Date.now();
   let directoryFailed = false;
   const rowsFor = (agentId: string): MemberInboxSession[] => {
@@ -1479,7 +1511,10 @@ export function createGroveFixture(
     scenario === "safety-notice" ||
     scenario === "seller-closed";
   const memberInbox = createFixtureMemberInbox(
-    scenario === "empty" || scenario === "start-failed" || noAgents
+    scenario === "empty" ||
+      scenario === "starter" ||
+      scenario === "start-failed" ||
+      noAgents
       ? []
       : agents.flatMap((agent) => rowsFor(agent.agentId)),
     { failFirstRead: scenario === "inbox-retry" },
@@ -1674,6 +1709,8 @@ export function createGroveFixture(
   let failedStart = false;
   let previewTurns = 0;
   const forkedTranscripts = new Map<string, SessionSnapshot["messages"]>();
+  // Two frames of one Grove open the same Session: both see one transcript.
+  const sharedSessions = new Map<string, ShiitakeSession>();
   const services: InboxServices = {
     // The real app opens a first conversation by itself; the workbench does too.
     autoOpen: true,
@@ -1704,6 +1741,9 @@ export function createGroveFixture(
           return Promise.resolve(`${agentId}-new`);
         },
         session: (sessionId) => {
+          const sharedKey = `${agentId}/${sessionId}`;
+          const shared = sharedSessions.get(sharedKey);
+          if (shared !== undefined) return shared;
           const index = Number(sessionId.slice(sessionId.lastIndexOf("-") + 1));
           const session = previewSession(
             sessionId,
@@ -1771,6 +1811,7 @@ export function createGroveFixture(
                 }
               : undefined,
           );
+          if (scenario === "two-frames") sharedSessions.set(sharedKey, session);
           // Grove seeds a conversation from its bounded read, then watches;
           // an unreadable Session fails both, as its owner would.
           const unreadable = (message: string): ShiitakeSession => ({

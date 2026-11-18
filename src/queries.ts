@@ -42,23 +42,20 @@ export function useInboxData(app: AppRoot | null) {
   });
   const { refetch } = directory;
   const previousActivity = useRef<{ app: AppRoot; key: string } | null>(null);
-  // An Agent can change its own identity during a turn. The Inbox's existing
-  // pushed transitions refresh the same directory Query a person's rename
-  // updates; known Agents need that refresh too. No second cache or polling.
+  // An Agent can change its own identity during a turn, and a turn ends in a
+  // Session state change. The Inbox's pushed state transitions refresh the same
+  // directory Query a person's rename updates; no second cache or polling. A
+  // Session's activity time moves with every message and cannot change an
+  // Agent's identity, so it is not part of the key. The app contract exposes no
+  // directory revision to key on instead.
   useEffect(() => {
     if (app === null || !directory.isSuccess || inbox.status !== "live") return;
     const sessions = inbox.items.filter(
       (item): item is MemberInboxSession => !("kind" in item),
     );
     if (sessions.length === 0) return;
-    // Visits change the Inbox too, but cannot change Agent identity.
     const key = JSON.stringify(
-      sessions.map((item) => [
-        item.agentId,
-        item.sessionId,
-        item.state,
-        "lastActivityAt" in item ? item.lastActivityAt : null,
-      ]),
+      sessions.map((item) => [item.agentId, item.sessionId, item.state]),
     );
     const changed =
       previousActivity.current?.app === app &&

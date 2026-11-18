@@ -1,5 +1,30 @@
 # @fungi.computer/grove
 
+## 0.17.0
+
+### Minor Changes
+
+- Changes since 0.16.1:
+
+  - fix(agents): one safe Agent name shape for people and the Agent itself
+  - fix(grove): drop an always-true guard in the chat tile's height measure
+  - feat(grove): show Grove's chat on the dashboard as a surface widget
+  - fix(tui,grove): read an ended turn as idle, not needs you
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.22.0
+  - @fungi.computer/caps@0.12.1
+  - @fungi.computer/parakeet@0.13.2
+  - @fungi.computer/shiitake-extensions@0.11.8
+  - @fungi.computer/shiitake@0.20.3
+  - @fungi.computer/knapsack@0.4.19
+
 ## 0.16.1
 
 ### Patch Changes

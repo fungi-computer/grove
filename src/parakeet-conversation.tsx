@@ -26,8 +26,7 @@ import { claimsPrintsPanel, ImageResultCard } from "./image-result-card.js";
 import { ApprovalOwners } from "./approval-owners.js";
 import { GameShareCard, gameShareDisplayText } from "./game-share-card.js";
 import "@fungi.computer/stipe/fonts-mono.css";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { starterPrompts } from "./starters.js";
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 
 // The same Session footer entries the TUI mounts (apps/tui/src/cli.tsx).
 const sessionClients = [
@@ -49,8 +48,6 @@ function ComposeDraft({
   prefill: Readonly<{
     requestId: string;
     text: string;
-    /** A chosen starter sends as written, the way a chip does in an empty chat. */
-    send?: boolean;
   }> | null;
   onPrefilled: () => void;
 }) {
@@ -60,9 +57,8 @@ function ComposeDraft({
     if (!prefill || handled.current === prefill.requestId) return;
     handled.current = prefill.requestId;
     composer.setDraft(prefill.text);
-    if (prefill.send === true) composer.send();
     onPrefilled();
-  }, [composer.setDraft, composer.send, onPrefilled, prefill]);
+  }, [composer.setDraft, onPrefilled, prefill]);
   return null;
 }
 
@@ -76,6 +72,7 @@ export function ParakeetConversation({
   onOpen,
   models,
   autoFocus,
+  empty,
 }: {
   session: ParakeetSession;
   draftIdentity: ParakeetDraftIdentity;
@@ -84,7 +81,6 @@ export function ParakeetConversation({
   prefill?: Readonly<{
     requestId: string;
     text: string;
-    send?: boolean;
   }> | null;
   onPrefilled?: () => void;
   /** Open a footer row's conversation; Grove shows it beside this one. */
@@ -93,6 +89,8 @@ export function ParakeetConversation({
   models?: SetupState | undefined;
   /** Focus the composer on open, so the person can just type. */
   autoFocus?: boolean | undefined;
+  /** What an empty conversation shows; absent, Parakeet's quiet prompt. */
+  empty?: ReactNode | undefined;
 }): React.JSX.Element {
   const ui = connection?.ui ?? null;
   const capabilities = connection?.capabilities;
@@ -113,7 +111,6 @@ export function ParakeetConversation({
                 },
               },
             },
-      starters: starterPrompts,
     }),
     [models, ui],
   );
@@ -163,6 +160,7 @@ export function ParakeetConversation({
           onOpen={onOpen}
           hostFacts={hostFacts}
           autoFocus={autoFocus}
+          empty={empty}
           composerActionVariant="outline"
           commands={commands}
           renderAssistantAttachment={renderAssistantAttachment}

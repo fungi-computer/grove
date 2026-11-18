@@ -9,6 +9,7 @@ import {
   memberInboxItemSchema,
   inboxVisitResultSchema,
 } from "@fungi.computer/agar/inbox";
+import { chatGill } from "./chat-gill.js";
 import { inboxGill } from "./inbox-gill.js";
 import type { WhistleJsonValue } from "@fungi.computer/whistle";
 
@@ -60,7 +61,7 @@ const sendOutput = z.union([
   appSendBudgetRefusalSchema,
 ]);
 export const appBackend = defineAppBackend<GroveMethodContext>({
-  gills: [inboxGill],
+  gills: [inboxGill, chatGill],
   methods: {
     listSessions: defineAppMethod({
       description:

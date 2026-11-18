@@ -9,6 +9,8 @@ import {
 import { mountApp } from "@fungi.computer/agar/react";
 import { createQueryClient } from "@fungi.computer/agar/query";
 import { appStorage, type AppStorage } from "@fungi.computer/agar/storage";
+import { appsOpen, type AppOpenInput } from "@fungi.computer/agar/apps";
+import { ChatGillApp, type ChatGillFunding } from "../src/chat-gill.js";
 import { InboxApp } from "../src/inbox.js";
 import type { GroveLayout } from "../src/grove-layout.js";
 import {
@@ -60,10 +62,42 @@ function withSavedLayout(
   };
 }
 
+/** The host answers "Open in Grove" by reporting what it was asked to open. */
+function withOpenApp(
+  base: AppRoot["capabilities"],
+  open: (input: AppOpenInput) => void,
+): AppRoot["capabilities"] {
+  const registry = createCapabilityRegistry();
+  registry.provide(appsOpen, {
+    open: (input) => {
+      open(input);
+      return Promise.resolve();
+    },
+    role: () => Promise.resolve({ displayName: "Grove" }),
+  });
+  return {
+    version: base.version,
+    subscribe: (listener) => base.subscribe(listener),
+    has: (contract) => registry.has(contract) || base.has(contract),
+    require: (contract) =>
+      registry.has(contract)
+        ? registry.require(contract)
+        : base.require(contract),
+  };
+}
+
+/** What the dashboard tile of Grove's chat shows; absent, the full window. */
+type ChatTile = Readonly<{
+  /** M is the compact ask box, L the full timeline. */
+  size: "M" | "L";
+  funding?: ChatGillFunding;
+}>;
+
 function Workbench({
   scenario = "inbox",
   narrow = false,
   tile = false,
+  chat,
   openRequest = null,
   unavailableSessionIds = [],
   models,
@@ -73,6 +107,7 @@ function Workbench({
   scenario?: GroveScenario;
   narrow?: boolean;
   tile?: boolean;
+  chat?: ChatTile;
   openRequest?: AppOpenRequest | null;
   unavailableSessionIds?: readonly string[];
   /** The host's setup fact; omit for a host that does not say. */
@@ -91,16 +126,20 @@ function Workbench({
     ),
   );
   const { status, bar } = useWorkbenchStatusBar();
+  const [opened, setOpened] = useState<AppOpenInput | null>(null);
+  const [fundingOpened, setFundingOpened] = useState(false);
   const connection = useMemo(
     () =>
       fixture.connection === null
         ? null
         : {
             ...fixture.connection,
-            capabilities:
+            capabilities: withOpenApp(
               savedLayout === undefined
                 ? fixture.connection.capabilities
                 : withSavedLayout(fixture.connection.capabilities, savedLayout),
+              setOpened,
+            ),
             ui: { ...fixture.connection.ui, ...status },
           },
     [fixture, status, savedLayout],
@@ -115,25 +154,47 @@ function Workbench({
   useEffect(() => {
     const element = root.current;
     if (!element) throw new Error("Grove workbench mount is missing");
-    return mountApp(element, { name: "Grove", queryClient }, () => (
-      <InboxApp {...fixture} connection={connection} />
-    ));
-  }, [fixture, connection, queryClient]);
+    return mountApp(element, { name: "Grove", queryClient }, () =>
+      chat === undefined ? (
+        <InboxApp {...fixture} connection={connection} />
+      ) : (
+        <ChatGillApp
+          {...fixture}
+          connection={connection}
+          funding={chat.funding}
+          openFunding={() => {
+            setFundingOpened(true);
+          }}
+        />
+      ),
+    );
+  }, [fixture, connection, queryClient, chat]);
   return (
     <div
-      className={`mx-auto w-full ${tile ? "max-w-[30.625rem]" : narrow ? "max-w-[24rem]" : "max-w-[76rem]"}`}
+      className={`mx-auto w-full ${narrow ? "max-w-[24rem]" : chat?.size === "L" ? "max-w-[36rem]" : tile || chat ? "max-w-[30.625rem]" : "max-w-[76rem]"}`}
     >
       <div
-        className={`flex flex-col ${tile ? "h-[20.625rem]" : "h-[calc(100dvh-2*var(--spacing-xl))] min-h-96"}`}
+        className={`flex flex-col ${tile || chat?.size === "M" ? "h-[20.625rem]" : chat?.size === "L" && !narrow ? "h-[36rem]" : "h-[calc(100dvh-2*var(--spacing-xl))] min-h-96"}`}
         data-theme={theme}
       >
         <div
-          className="min-h-0 flex-1 [&_[data-inbox-app]]:h-full"
+          className="min-h-0 flex-1 [&_[data-chat-gill]]:h-full [&_[data-inbox-app]]:h-full"
           style={{ contain: "layout" }}
           ref={root}
         />
         {bar}
       </div>
+      {opened === null ? null : (
+        <p role="status" data-opened-grove>
+          Grove opened:{" "}
+          {opened.intent.kind === "navigate"
+            ? opened.intent.params
+                .map((param) => `${param.key}=${param.value}`)
+                .join(" ")
+            : "compose"}
+        </p>
+      )}
+      {fundingOpened ? <p role="status">Funding sheet opened</p> : null}
     </div>
   );
 }
@@ -189,6 +250,109 @@ export const Tile = () => <Workbench tile />;
 export const TileNoModel = () => (
   <Workbench tile scenario="no-agents" models="missing" />
 );
+/** Grove's chat as a dashboard tile (a surface Gill): no conversations yet. */
+export const ChatGillEmpty = () => (
+  <Workbench scenario="starter" models="ready" chat={{ size: "L" }} />
+);
+/** The same tile mid-conversation, its newest turn still running. */
+export const ChatGillLive = () => (
+  <Workbench models="ready" chat={{ size: "L" }} />
+);
+/** Under the Team's setup credit: the footer shows and the model picker hides. */
+export const ChatGillSetupFooter = () => (
+  <Workbench
+    scenario="starter"
+    models="ready"
+    chat={{
+      size: "L",
+      funding: { resourceFunding: "setup", setupCredit: "$1.00" },
+    }}
+  />
+);
+/** The tile on a phone, where it fills the viewport. */
+export const ChatGillPhone = () => (
+  <Workbench
+    narrow
+    scenario="starter"
+    models="ready"
+    chat={{
+      size: "L",
+      funding: { resourceFunding: "setup", setupCredit: "$1.00" },
+    }}
+  />
+);
+/** The compact ask box: a short tile shows the greeting without the large head. */
+export const ChatGillCompact = () => (
+  <Workbench scenario="starter" models="ready" chat={{ size: "M" }} />
+);
+/**
+ * The dashboard tile and the full window of one Grove, open on the same
+ * Session: a turn sent from the tile shows in the window as it streams.
+ */
+export function ChatGillWithWindow() {
+  const [fixture] = useState(() =>
+    createGroveFixture(
+      "two-frames",
+      {
+        kind: "navigate",
+        requestId: "chat-gill-with-window",
+        params: [
+          { key: "agent", value: "gardener" },
+          { key: "session", value: "gardener-0" },
+        ],
+      },
+      [],
+      "ready",
+    ),
+  );
+  const tile = useRef<HTMLDivElement>(null);
+  const window = useRef<HTMLDivElement>(null);
+  const theme = useSyncExternalStore(
+    (onChange) =>
+      fixture.connection?.theme.subscribe(onChange) ?? (() => undefined),
+    () => fixture.connection?.theme.get(),
+  );
+  useEffect(() => {
+    const tileElement = tile.current;
+    const windowElement = window.current;
+    if (!tileElement || !windowElement)
+      throw new Error("Grove workbench mount is missing");
+    // Each frame is its own document in the host, so each has its own cache.
+    const stopTile = mountApp(
+      tileElement,
+      { name: "Grove", queryClient: createQueryClient() },
+      () => <ChatGillApp {...fixture} />,
+    );
+    const stopWindow = mountApp(
+      windowElement,
+      { name: "Grove", queryClient: createQueryClient() },
+      () => <InboxApp {...fixture} />,
+    );
+    return () => {
+      stopTile();
+      stopWindow();
+    };
+  }, [fixture]);
+  return (
+    <div
+      className="mx-auto flex h-[calc(100dvh-2*var(--spacing-xl))] min-h-96 w-full max-w-[90rem] gap-md"
+      data-theme={theme}
+    >
+      <div
+        className="h-full w-[36rem] flex-none [&_[data-chat-gill]]:h-full"
+        data-frame="tile"
+        ref={tile}
+        style={{ contain: "layout" }}
+      />
+      <div
+        className="h-full min-w-0 flex-1 [&_[data-inbox-app]]:h-full"
+        data-frame="window"
+        ref={window}
+        style={{ contain: "layout" }}
+      />
+    </div>
+  );
+}
 export const Loading = () => <Workbench scenario="loading" />;
 export const EmptyConversations = () => <Workbench scenario="empty" />;
 export const FailedStart = () => <Workbench scenario="start-failed" />;
@@ -398,8 +562,8 @@ export const AgentNoModel = () => (
 );
 /** Returning with saved conversations still requires model setup. */
 export const ReturnVisitNoModel = () => <Workbench models="missing" />;
-/** A model is connected: three starters that send. */
-export const FirstRunStarters = () => (
+/** A model is connected and nothing is open yet: Grove opens a conversation. */
+export const FirstRunReady = () => (
   <Workbench scenario="empty" models="ready" />
 );
 /** Inside a conversation with no model: one central setup panel replaces sending. */

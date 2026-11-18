@@ -97,7 +97,6 @@ import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
 import { ModelSetup } from "./model-setup.js";
-import { starterPrompts } from "./starters.js";
 import { InboxList } from "./inbox-list.js";
 import { showConversationToast } from "./conversation-toast.js";
 import { useWebsiteInbox } from "./website-inbox.js";
@@ -137,13 +136,12 @@ export type InboxServices = Readonly<{
     composeDraft: Readonly<{
       requestId: string;
       text: string;
-      send?: boolean;
     }> | null,
     onOpen: (target: NonNullable<RowV1["open"]>) => void,
   ) => React.ReactNode;
 }>;
 
-const defaultServices: InboxServices = {
+export const defaultServices: InboxServices = {
   openAgent: openAppAgent,
   createClient: createShiitakeClient,
   autoOpen: true,
@@ -162,13 +160,13 @@ const conversationAccess: readonly AgentAccessOperation[] = [
   "agent.manage",
 ];
 
-const sessionCreateRequests = defineIdFamily({
+export const sessionCreateRequests = defineIdFamily({
   family: "grove-session-create-request",
   version: 1,
   kinds: { request: { prefix: "request" } },
 });
 
-async function withAgentClient<T>(
+export async function withAgentClient<T>(
   app: AppRoot,
   agentId: string,
   services: InboxServices,
@@ -190,7 +188,8 @@ async function withAgentClient<T>(
   }
 }
 
-function Conversation({
+/** One open Session in Grove's Parakeet runtime; the widget reuses it. */
+export function Conversation({
   open,
   renderConversation,
   connection,
@@ -201,6 +200,8 @@ function Conversation({
   onOpen,
   models,
   autoFocus,
+  empty,
+  modelPicker = true,
   opening = false,
   label = "Conversation",
 }: {
@@ -215,13 +216,16 @@ function Conversation({
   opening?: boolean | undefined;
   /** Focus the composer on open (the main pane, not a beside conversation). */
   autoFocus?: boolean | undefined;
+  /** What an empty conversation shows; absent, Parakeet's quiet prompt. */
+  empty?: React.ReactNode;
+  /** Offer `/model` and the model catalog; false hides the picker. */
+  modelPicker?: boolean | undefined;
   commands: ParakeetCommandRuntime;
   open: OpenConversation;
   renderConversation?: InboxServices["renderConversation"];
   composeDraft: Readonly<{
     requestId: string;
     text: string;
-    send?: boolean;
   }> | null;
   onPrefilled: () => void;
   onForked: (sessionId: string) => void;
@@ -239,7 +243,7 @@ function Conversation({
     | { kind: "ready"; models: AgentModelList }
   >({ kind: "loading" });
   useEffect(() => {
-    if (!connection || renderConversation) return;
+    if (!connection || renderConversation || !modelPicker) return;
     const controller = new AbortController();
     setModelCatalog({ kind: "loading" });
     void readAgentModels(
@@ -259,7 +263,7 @@ function Conversation({
     return () => {
       controller.abort();
     };
-  }, [connection, open.agentId, renderConversation]);
+  }, [connection, open.agentId, renderConversation, modelPicker]);
   useEffect(() => {
     // One source owns the Session namespace. The model key, Settings and
     // /model all invoke the same command and Shiitake preference owner.
@@ -274,7 +278,7 @@ function Conversation({
           forkAvailable: true,
           onForked,
         }),
-        ...(renderConversation
+        ...(renderConversation || !modelPicker
           ? []
           : sessionModelCommandDefinitions(session, {
               sourceId: "grove-session",
@@ -315,6 +319,7 @@ function Conversation({
     onForked,
     renderConversation,
     modelCatalog,
+    modelPicker,
     connection,
     open.agentId,
   ]);
@@ -348,6 +353,7 @@ function Conversation({
             onOpen={onOpen}
             models={models}
             autoFocus={autoFocus}
+            empty={empty}
           />
         </Suspense>
       )}
@@ -531,7 +537,6 @@ function ConnectedInbox({
   const [composeDraft, setComposeDraft] = useState<Readonly<{
     requestId: string;
     text: string;
-    send?: boolean;
   }> | null>(null);
   const appContext = useAppContext(connection);
   const openRequest = appContext?.openRequest ?? null;
@@ -680,11 +685,7 @@ function ConnectedInbox({
   const conversationShown =
     !!openConversation || websites.selected !== undefined;
   const startConversation = useCallback(
-    async (
-      agentId: string,
-      starter?: string,
-      cause: "person" | "auto" = "person",
-    ) => {
+    async (agentId: string, cause: "person" | "auto" = "person") => {
       if (!connection || !conversationView || startingAgentId !== null)
         return "Conversation creation is unavailable.";
       // Grove's own first conversation never competes with a person's choice.
@@ -711,13 +712,6 @@ function ConnectedInbox({
           if (startMutation.isError) startMutation.reset();
           websites.clear();
           setWebsitesOnly(false);
-          // A chosen starter sends as written once the conversation is open.
-          if (starter !== undefined)
-            setComposeDraft({
-              requestId: correlationKey(),
-              text: starter,
-              send: true,
-            });
         }
         // Session creation can beat this App's visibility feed delta. Reload
         // the owner snapshot without delaying the new conversation opening.
@@ -1131,7 +1125,7 @@ function ConnectedInbox({
     )
       return;
     autoStarted.current = true;
-    void startConversation(startAgent.agentId, undefined, "auto");
+    void startConversation(startAgent.agentId, "auto");
   }, [
     canWriteAgent,
     connection,
@@ -1711,18 +1705,7 @@ function ConnectedInbox({
               description={
                 listed > 0
                   ? `${listVisible ? "Choose one from the list" : "Open the conversation list to choose one"}, or ask for something new. A short writing task is a good start.`
-                  : "Ask for anything. Pick one to start."
-              }
-              suggestions={
-                listed === 0 && canStart
-                  ? starterPrompts.map((prompt) => ({
-                      label: prompt,
-                      disabled: startingAgentId !== null,
-                      onSelect: () => {
-                        void startConversation(startAgent.agentId, prompt);
-                      },
-                    }))
-                  : undefined
+                  : "Ask anything."
               }
               actions={
                 <>

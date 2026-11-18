@@ -219,12 +219,18 @@ export type InboxOpenSessionState = Readonly<{
   state: ParakeetOwnerViewState;
 }>;
 
-function inboxState(view: ParakeetOwnerViewState): SessionInboxState {
+/**
+ * The live view says what the open Session is doing; only its owner row says
+ * whether a person must answer something. A turn that simply ended is done.
+ */
+function inboxState(
+  view: ParakeetOwnerViewState,
+  owner: SessionInboxState,
+): SessionInboxState {
   switch (view.kind) {
     case "idle":
-      return "done";
     case "waiting_for_you":
-      return "needs_you";
+      return owner === "needs_you" ? "needs_you" : "done";
     case "error":
       return "errored";
     default:
@@ -276,7 +282,7 @@ export function buildInboxSessionView(
       openSession.sessionId === session.sessionId
         ? openSession.state
         : undefined;
-    const state = live ? inboxState(live) : session.state;
+    const state = live ? inboxState(live, session.state) : session.state;
     const ready = live
       ? live.kind === "idle"
       : state === "done" && session.settledAt === undefined;
