@@ -1,5 +1,20 @@
 # @fungi.computer/grove
 
+## 0.20.0
+
+### Minor Changes
+
+- Changes since 0.19.1:
+
+  - fix(grove): show the model-key step over a conversation that opened first
+  - feat(grove): lead the chat widget to a model key when none is connected
+
+### Patch Changes
+
+- @fungi.computer/shiitake@0.21.4
+  - @fungi.computer/parakeet@0.14.4
+  - @fungi.computer/shiitake-extensions@0.11.14
+
 ## 0.19.1
 
 ### Patch Changes

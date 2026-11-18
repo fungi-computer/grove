@@ -16,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@fungi.computer/caps/components/dropdown-menu";
+import { FailureLine } from "@fungi.computer/caps/components/failure-line";
 import { IconButton } from "@fungi.computer/caps/components/icon-button";
 import { AgentHead, useComposer } from "@fungi.computer/parakeet";
 import {
@@ -211,6 +212,77 @@ function ChatGillEmpty({ agent }: { agent: AppAgent | undefined }) {
   );
 }
 
+/**
+ * The host knows no model is connected, so no Agent can reply yet. The one
+ * step is the host's own Settings; when a key is added the host publishes
+ * `models: "ready"` and the widget moves on to the chips by itself.
+ */
+function ChatGillConnectModel({
+  agent,
+  connection,
+}: {
+  agent: AppAgent | undefined;
+  connection: AppRoot;
+}) {
+  const name = agent === undefined ? "your Agent" : agentLabel(agent);
+  const [opening, setOpening] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const addKey = async () => {
+    setFailed(false);
+    setOpening(true);
+    try {
+      setFailed((await connection.ui.openSetup("model")) !== "opened");
+    } catch (cause: unknown) {
+      console.error("Grove chat widget could not open model setup", cause);
+      setFailed(true);
+    } finally {
+      setOpening(false);
+    }
+  };
+  return (
+    <div
+      className="chat-gill-connect m-auto flex min-h-0 max-w-[24rem] flex-col items-center gap-md overflow-y-auto px-md py-sm text-center"
+      data-chat-gill-connect-model
+    >
+      {agent === undefined ? null : (
+        <AgentHead
+          avatar={agent.avatar}
+          className="chat-gill-hero"
+          name={name}
+          size={72}
+        />
+      )}
+      <h2 className="text-lg font-semibold text-base-content">
+        Connect a model so {name} can reply
+      </h2>
+      <p className="text-sm text-dim">
+        Use Cloudflare Workers AI, or a key from your own model provider. Your
+        key stays on this Oyster.
+      </p>
+      <Button
+        disabled={opening}
+        onClick={() => {
+          void addKey();
+        }}
+      >
+        {opening ? "Opening Model keys…" : "Add a model key"}
+      </Button>
+      {failed ? (
+        <FailureLine
+          role="alert"
+          message="Model keys could not open. Try opening them again."
+          onRetry={() => {
+            void addKey();
+          }}
+          onDismiss={() => {
+            setFailed(false);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function ChatGill({
   connection,
   services = defaultServices,
@@ -219,6 +291,8 @@ function ChatGill({
 }: ChatGillProps): React.JSX.Element {
   const queryClient = useQueryClient();
   const appContext = useAppContext(connection);
+  // Only a host that says so: one that publishes nothing never shows this.
+  const modelsMissing = appContext?.setup?.models === "missing";
   const { directory, inbox } = useInboxData(connection);
   const websites = useWebsiteInbox(connection, services);
   const commands = useMemo(() => createWhistle(), []);
@@ -326,7 +400,8 @@ function ChatGill({
     inbox.status !== "error" &&
     !websites.loading;
   useEffect(() => {
-    if (!ready || !view || agent === undefined || !canWrite) return;
+    if (!ready || !view || agent === undefined || !canWrite || modelsMissing)
+      return;
     if (snapshot.state.view.kind !== "none" || creating) return;
     if (attempted.current === agent.agentId) return;
     attempted.current = agent.agentId;
@@ -341,6 +416,7 @@ function ChatGill({
     canWrite,
     creating,
     latest,
+    modelsMissing,
     ready,
     snapshot.state.view.kind,
     startConversation,
@@ -380,6 +456,10 @@ function ChatGill({
       ? undefined
       : agents.find((item) => item.agentId === open.agentId)) ?? agent;
   const setup = funding?.resourceFunding === "setup" ? funding : undefined;
+  // No Agent can reply without a model, so this step comes before any
+  // conversation, including one opened before the host published the fact.
+  const connectModel =
+    modelsMissing && connection !== null && agent !== undefined && canWrite;
 
   let body: React.ReactNode;
   if (open) body = null;
@@ -523,7 +603,9 @@ function ChatGill({
         aria-label="Conversation"
         className="flex min-h-0 min-w-0 flex-1 flex-col"
       >
-        {open ? (
+        {connectModel ? (
+          <ChatGillConnectModel agent={headAgent} connection={connection} />
+        ) : open ? (
           <Conversation
             key={`${open.agentId}:${open.sessionId}`}
             commands={commands}

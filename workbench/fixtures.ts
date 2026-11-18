@@ -1217,6 +1217,8 @@ export function createGroveFixture(
   unavailableSessionIds: readonly string[] = [],
   models?: SetupState,
   openBilling: () => Promise<void> = () => Promise.resolve(),
+  /** Whether Model keys in this host connects a model, as a real key does. */
+  keyConnects = false,
 ) {
   const appContext = store({
     computerId: null,
@@ -1372,7 +1374,19 @@ export function createGroveFixture(
       requestBrowserAction: () => {
         throw new Error("Unexpected browser action");
       },
-      openSetup: () => Promise.resolve("unavailable"),
+      openSetup: (need) => {
+        if (!keyConnects || need !== "model")
+          return Promise.resolve("unavailable" as const);
+        // Settings closing with a key: the host republishes its setup facts.
+        const current = appContext.get();
+        appContext.update({
+          ...current,
+          ...(current.setup !== undefined && {
+            setup: { ...current.setup, models: "ready" as const },
+          }),
+        });
+        return Promise.resolve("opened" as const);
+      },
       openDesktopSettings: () => Promise.resolve(),
       reportAgentSessionSelection: () => Promise.resolve(),
       showToast: () => Promise.resolve(),

@@ -103,6 +103,7 @@ function Workbench({
   openRequest = null,
   unavailableSessionIds = [],
   models,
+  keyConnects,
   openBilling,
   savedLayout,
 }: {
@@ -114,6 +115,8 @@ function Workbench({
   unavailableSessionIds?: readonly string[];
   /** The host's setup fact; omit for a host that does not say. */
   models?: SetupState;
+  /** Whether adding a key in Settings connects a model. */
+  keyConnects?: boolean;
   openBilling?: () => Promise<void>;
   /** The member's rail layout the host App storage already holds. */
   savedLayout?: GroveLayout;
@@ -125,6 +128,7 @@ function Workbench({
       unavailableSessionIds,
       models,
       openBilling,
+      keyConnects,
     ),
   );
   const { status, bar } = useWorkbenchStatusBar();
@@ -269,6 +273,18 @@ export const ChatGillSetupFooter = () => (
       size: "L",
       funding: { resourceFunding: "setup", setupCredit: "$1.00" },
     }}
+  />
+);
+/**
+ * An Oyster with no model yet (`oyster try` on a laptop): the tile leads to
+ * Model keys, and adding a key moves it on to the greeting and chips.
+ */
+export const ChatGillNoModel = () => (
+  <Workbench
+    scenario="starter"
+    models="missing"
+    keyConnects
+    chat={{ size: "L" }}
   />
 );
 /** The tile on a phone, where it fills the viewport. */
