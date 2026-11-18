@@ -1,5 +1,19 @@
 # @fungi.computer/grove
 
+## 0.21.0
+
+### Minor Changes
+
+- Changes since 0.20.0:
+
+  - feat(grove): show the model picker and a plain credit footer in the chat
+    widget
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/parakeet@0.14.5
+
 ## 0.20.0
 
 ### Minor Changes

@@ -203,7 +203,6 @@ export function Conversation({
   models,
   autoFocus,
   empty,
-  modelPicker = true,
   opening = false,
   label = "Conversation",
 }: {
@@ -220,8 +219,6 @@ export function Conversation({
   autoFocus?: boolean | undefined;
   /** What an empty conversation shows; absent, Parakeet's quiet prompt. */
   empty?: React.ReactNode;
-  /** Offer `/model` and the model catalog; false hides the picker. */
-  modelPicker?: boolean | undefined;
   commands: ParakeetCommandRuntime;
   open: OpenConversation;
   renderConversation?: InboxServices["renderConversation"];
@@ -245,7 +242,7 @@ export function Conversation({
     | { kind: "ready"; models: AgentModelList }
   >({ kind: "loading" });
   useEffect(() => {
-    if (!connection || renderConversation || !modelPicker) return;
+    if (!connection || renderConversation) return;
     const controller = new AbortController();
     setModelCatalog({ kind: "loading" });
     void readAgentModels(
@@ -265,7 +262,7 @@ export function Conversation({
     return () => {
       controller.abort();
     };
-  }, [connection, open.agentId, renderConversation, modelPicker]);
+  }, [connection, open.agentId, renderConversation]);
   useEffect(() => {
     // One source owns the Session namespace. The model key, Settings and
     // /model all invoke the same command and Shiitake preference owner.
@@ -280,7 +277,7 @@ export function Conversation({
           forkAvailable: true,
           onForked,
         }),
-        ...(renderConversation || !modelPicker
+        ...(renderConversation
           ? []
           : sessionModelCommandDefinitions(session, {
               sourceId: "grove-session",
@@ -321,7 +318,6 @@ export function Conversation({
     onForked,
     renderConversation,
     modelCatalog,
-    modelPicker,
     connection,
     open.agentId,
   ]);

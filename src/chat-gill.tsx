@@ -60,23 +60,15 @@ export const personaChips: readonly string[] = [
   "Just looking around",
 ];
 
-/**
- * What the host knows about who pays for this Team's Agent. Only the setup
- * credit shows in the widget; funded Teams and Oyster see nothing.
- */
-export type ChatGillFunding =
-  | Readonly<{ resourceFunding: "funded" | "unfunded" }>
-  | Readonly<{
-      resourceFunding: "setup";
-      /** The credit left, formatted by the host, such as "$1.00". */
-      setupCredit: string;
-    }>;
-
 export type ChatGillProps = Readonly<{
   connection: AppRoot | null;
   services?: InboxServices;
-  /** Absent when the host does not say; the widget then shows no footer. */
-  funding?: ChatGillFunding | undefined;
+  /**
+   * A Free Team's credit left, formatted by the host, such as "$1.00". Absent
+   * on Pro, on Oyster, or when the host does not say; the widget then shows no
+   * footer.
+   */
+  credit?: string | undefined;
   /** Open the host's payment sheet over the dashboard. */
   openFunding?: (() => void) | undefined;
 }>;
@@ -286,7 +278,7 @@ function ChatGillConnectModel({
 function ChatGill({
   connection,
   services = defaultServices,
-  funding,
+  credit,
   openFunding,
 }: ChatGillProps): React.JSX.Element {
   const queryClient = useQueryClient();
@@ -455,7 +447,6 @@ function ChatGill({
     (open === null
       ? undefined
       : agents.find((item) => item.agentId === open.agentId)) ?? agent;
-  const setup = funding?.resourceFunding === "setup" ? funding : undefined;
   // No Agent can reply without a model, so this step comes before any
   // conversation, including one opened before the host published the fact.
   const connectModel =
@@ -552,9 +543,8 @@ function ChatGill({
 
   return (
     <main
-      className="chat-gill @container/grove relative flex h-dvh min-h-0 flex-col bg-base-100 font-sans text-base-content data-[funding=setup]:[&_.parakeet-composer-model-key]:hidden"
+      className="chat-gill @container/grove relative flex h-dvh min-h-0 flex-col bg-base-100 font-sans text-base-content"
       data-chat-gill
-      data-funding={funding?.resourceFunding ?? "unknown"}
     >
       <header className="flex flex-none items-center gap-sm border-b border-base-300 px-md py-xs">
         {headAgent === undefined ? null : (
@@ -613,7 +603,6 @@ function ChatGill({
             connection={connection}
             empty={<ChatGillEmpty agent={headAgent} />}
             label="Chat"
-            modelPicker={setup === undefined}
             models={appContext?.setup?.models}
             onForked={onForked}
             onOpen={(target) => {
@@ -628,13 +617,12 @@ function ChatGill({
           body
         )}
       </section>
-      {setup === undefined ? null : (
+      {credit === undefined ? null : (
         <p
           className="flex-none px-md pb-sm text-center text-xs text-dim"
           data-chat-gill-footer
         >
-          Setup credit:{" "}
-          <strong className="font-semibold">{setup.setupCredit}</strong>
+          Credit: <strong className="font-semibold">{credit}</strong>
           {" · "}
           {openFunding === undefined ? (
             "Start Pro"

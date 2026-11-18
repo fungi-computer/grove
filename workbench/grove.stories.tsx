@@ -10,7 +10,7 @@ import { mountApp } from "@fungi.computer/agar/react";
 import { createQueryClient } from "@fungi.computer/agar/query";
 import { appStorage, type AppStorage } from "@fungi.computer/agar/storage";
 import { appsOpen, type AppOpenInput } from "@fungi.computer/agar/apps";
-import { ChatGillApp, type ChatGillFunding } from "../src/chat-gill.js";
+import { ChatGillApp } from "../src/chat-gill.js";
 import { InboxApp } from "../src/inbox.js";
 import type { GroveLayout } from "../src/grove-layout.js";
 import {
@@ -92,7 +92,8 @@ function withOpenApp(
 type ChatTile = Readonly<{
   /** M is the compact ask box, L the full timeline. */
   size: "M" | "L";
-  funding?: ChatGillFunding;
+  /** A Free Team's credit left, as the host states it. */
+  credit?: string;
 }>;
 
 function Workbench({
@@ -167,7 +168,7 @@ function Workbench({
         <ChatGillApp
           {...fixture}
           connection={connection}
-          funding={chat.funding}
+          credit={chat.credit}
           openFunding={() => {
             setFundingOpened(true);
           }}
@@ -264,15 +265,12 @@ export const ChatGillEmpty = () => (
 export const ChatGillLive = () => (
   <Workbench models="ready" chat={{ size: "L" }} />
 );
-/** Under the Team's setup credit: the footer shows and the model picker hides. */
-export const ChatGillSetupFooter = () => (
+/** A Free Team with credit: the footer shows its credit and Start Pro. */
+export const ChatGillCreditFooter = () => (
   <Workbench
     scenario="starter"
     models="ready"
-    chat={{
-      size: "L",
-      funding: { resourceFunding: "setup", setupCredit: "$1.00" },
-    }}
+    chat={{ size: "L", credit: "$1.00" }}
   />
 );
 /**
@@ -293,10 +291,7 @@ export const ChatGillPhone = () => (
     narrow
     scenario="starter"
     models="ready"
-    chat={{
-      size: "L",
-      funding: { resourceFunding: "setup", setupCredit: "$1.00" },
-    }}
+    chat={{ size: "L", credit: "$1.00" }}
   />
 );
 /** The compact ask box: a short tile shows the greeting without the large head. */
