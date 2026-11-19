@@ -18,6 +18,7 @@ import {
   agentList,
   agentSessionRead,
   agentSessionWrite,
+  authorMeta,
   type AppAgent,
 } from "@fungi.computer/agar/agents";
 import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
@@ -62,6 +63,9 @@ import { createFixtureMemberInbox } from "./member-inbox-fixture.js";
 import { replayLiveToolOutput } from "./live-tool-output-replay.js";
 
 /** The footer view of one conversation that sent work to two Agents and created a third. */
+/** The user id a pre-fix Hub stamped as the author name of a member prompt. */
+const staleAuthorId = "jKeZrFhfFDiUtMLhR1ow32AoCOeZpMNt";
+
 const subagentSlots = {
   [subagentsContract.id]: {
     status: "running" as const,
@@ -1089,6 +1093,12 @@ function previewSession(
           sequence,
           commandId: workId,
           requestId: input.requestId,
+          // A prompt stored with the old Hub stamp: the author's name is the
+          // member's user id. A solo chat must never show it.
+          meta: authorMeta({
+            id: `member:${staleAuthorId}`,
+            name: staleAuthorId,
+          }),
           value: { role: "user", content: input.text, timestamp: Date.now() },
         },
       ],

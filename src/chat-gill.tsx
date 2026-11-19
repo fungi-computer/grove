@@ -8,7 +8,6 @@ import { appsOpen, type AppOpenInput } from "@fungi.computer/agar/apps";
 import { queryKeys } from "@fungi.computer/agar/query";
 import { appStorage } from "@fungi.computer/agar/storage";
 import { useAppContext } from "@fungi.computer/agar/react";
-import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
 import { Button } from "@fungi.computer/caps/components/button";
 import {
   DropdownMenu,
@@ -37,6 +36,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { HeadLoading } from "./head-loading.js";
 import { showConversationToast } from "./conversation-toast.js";
 import {
   Conversation,
@@ -52,12 +52,31 @@ import { useInboxData } from "./queries.js";
 import { firstSessionRequestId } from "./first-session.js";
 import { useWebsiteInbox } from "./website-inbox.js";
 
-/** The "what kind of person are you" openers; each sends as written. */
-export const personaChips: readonly string[] = [
-  "I write code",
-  "I run a small business",
-  "I make art and video",
-  "Just looking around",
+/** One opener: the short label on the button, and the full prompt it sends. */
+export type PersonaChip = Readonly<{ label: string; prompt: string }>;
+
+/** The openers an empty conversation offers; each sends its whole prompt. */
+export const personaChips: readonly PersonaChip[] = [
+  {
+    label: "Set me up",
+    prompt:
+      "I'm new here. Set yourself up for me: ask me at most three quick questions about what I want to use you for, show me a short plan, and wait for my OK before you change anything. Save what you learn about me in your AGENTS.md.",
+  },
+  {
+    label: "Help me set up my Oyster",
+    prompt:
+      "Help me set up my Oyster, Fungi running on my own machine. First ask what I'm installing it on (Mac, Linux, or a server). Then take me through the official install from docs.fungi.computer one step at a time. Give me one command, wait until I say it worked, then the next. Never guess a command. Finish by checking that my Oyster answers, and tell me what to do next.",
+  },
+  {
+    label: "Make an image or video",
+    prompt:
+      "I want to make an image or a short video. Ask me what it's for and offer three style options to pick from. Then make a quick first draft in Prints and show it to me. After that, ask what to change. Save the style I like in your AGENTS.md so you remember it.",
+  },
+  {
+    label: "Work on my code",
+    prompt:
+      "I want help with a code project. Ask for the repo link, or help me connect GitHub if it's private. Then clone it onto your Computer and read it: the README, build, test and CI files. Write an AGENTS.md for the project with the exact build and test commands, then tell me the three most useful things you learned and suggest one small first task.",
+  },
 ];
 
 export type ChatGillProps = Readonly<{
@@ -185,14 +204,14 @@ function ChatGillEmpty({ agent }: { agent: AppAgent | undefined }) {
         className="flex flex-wrap justify-center gap-sm"
         role="group"
       >
-        {personaChips.map((label) => (
+        {personaChips.map(({ label, prompt }) => (
           <Button
             key={label}
             size="sm"
             variant="outline"
             onClick={() => {
               // The same path as typing it: the draft is the prompt, then it sends.
-              composer.setDraft(label);
+              composer.setDraft(prompt);
               composer.send();
             }}
           >
@@ -456,9 +475,8 @@ function ChatGill({
   if (open) body = null;
   else if (!connection || directory.isPending || pending !== null || creating)
     body = (
-      <LoadingState
-        className="m-auto"
-        framed={false}
+      <HeadLoading
+        agent={agent}
         message={connection ? "Getting ready…" : "Connecting…"}
       />
     );
@@ -603,6 +621,7 @@ function ChatGill({
             connection={connection}
             empty={<ChatGillEmpty agent={headAgent} />}
             label="Chat"
+            loadingAgent={headAgent}
             models={appContext?.setup?.models}
             onForked={onForked}
             onOpen={(target) => {

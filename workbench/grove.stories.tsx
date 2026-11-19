@@ -285,6 +285,10 @@ export const ChatGillNoModel = () => (
     chat={{ size: "L" }}
   />
 );
+/** The tile while the Agent directory loads: Shiitake's head, thinking. */
+export const ChatGillLoading = () => (
+  <Workbench scenario="loading" models="ready" chat={{ size: "L" }} />
+);
 /** The tile on a phone, where it fills the viewport. */
 export const ChatGillPhone = () => (
   <Workbench

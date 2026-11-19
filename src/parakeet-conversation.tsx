@@ -156,6 +156,7 @@ export function ParakeetConversation({
         sessionId={draftIdentity.sessionId}
       >
         <ParakeetView
+          hideSoleAuthor
           onLink={onLink}
           onOpen={onOpen}
           hostFacts={hostFacts}

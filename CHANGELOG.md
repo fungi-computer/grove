@@ -1,5 +1,24 @@
 # @fungi.computer/grove
 
+## 0.22.0
+
+### Minor Changes
+
+- Changes since 0.21.4:
+
+  - fix(hub): tell the Agent the path its Home instructions actually load from
+  - feat(grove): send a full prompt from each opener and load with Shiitake's
+    head
+  - feat(parakeet): hide the prompt author line while one person wrote every
+    prompt
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/parakeet@0.15.0
+  - @fungi.computer/shiitake-extensions@0.11.19
+
 ## 0.21.4
 
 ### Patch Changes

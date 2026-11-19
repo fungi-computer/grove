@@ -97,6 +97,7 @@ import { PanelLeftOpen, SquarePen } from "lucide-react";
 import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
+import { HeadLoading } from "./head-loading.js";
 import { ModelSetup } from "./model-setup.js";
 import { InboxList } from "./inbox-list.js";
 import { showConversationToast } from "./conversation-toast.js";
@@ -205,6 +206,7 @@ export function Conversation({
   empty,
   opening = false,
   label = "Conversation",
+  loadingAgent,
 }: {
   connection: AppRoot | null;
   /** Whether the host has a model connected, when it says. */
@@ -230,6 +232,8 @@ export function Conversation({
   onForked: (sessionId: string) => void;
   onOpen: (target: NonNullable<RowV1["open"]>) => void;
   label?: string;
+  /** The Agent whose head the loading state draws, when the host knows it; absent, the mascot. */
+  loadingAgent?: AppAgent | undefined;
 }): React.JSX.Element {
   const session = open.session;
   const pane = useRef<HTMLElement>(null);
@@ -334,11 +338,7 @@ export function Conversation({
       ) : (
         <Suspense
           fallback={
-            <LoadingState
-              className="m-auto"
-              framed={false}
-              message="Opening conversation…"
-            />
+            <HeadLoading agent={loadingAgent} message="Opening conversation…" />
           }
         >
           <ParakeetConversation
