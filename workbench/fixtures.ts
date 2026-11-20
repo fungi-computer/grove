@@ -24,6 +24,7 @@ import {
   agentList,
   agentSessionRead,
   agentSessionWrite,
+  agentStop,
   authorMeta,
   type AppAgent,
 } from "@fungi.computer/agar/agents";
@@ -1687,6 +1688,31 @@ export function createGroveFixture(
           return Promise.resolve(updated);
         }
         return Promise.reject(new Error("No such Agent"));
+      },
+    });
+  if (scenario !== "no-agent-access")
+    // Stop all answers as the Hub does: two helpers stopped before the Agent
+    // that made them, and one helper whose stop is unconfirmed.
+    capabilities.provide(agentStop, {
+      stopAll: ({ agentId }) => {
+        const name =
+          agents.find((agent) => agent.agentId === agentId)?.name ?? agentId;
+        return Promise.resolve({
+          rootAgentId: agentId,
+          agents: [
+            { agentId: "stop-scout", name: "Scout", outcome: "stopped" },
+            { agentId: "stop-maker", name: "Maker", outcome: "stopped" },
+            {
+              agentId: "stop-archivist",
+              name: "Archivist",
+              outcome: "failed",
+              reason: "it didn't answer within 5 seconds",
+            },
+            { agentId, name, outcome: "stopped" },
+          ],
+          discoveryFailures: [],
+          notPermitted: 0,
+        });
       },
     });
   if (scenario !== "no-agent-access") {

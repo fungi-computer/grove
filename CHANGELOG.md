@@ -1,5 +1,25 @@
 # @fungi.computer/grove
 
+## 0.24.0
+
+### Minor Changes
+
+- Changes since 0.23.3:
+
+  - fix(agar): say which Agents may still be running and why
+  - fix(hub): stop four Agents at once and count helpers a key may not stop
+  - feat(grove): stop an agent and its helpers with /stop all
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.25.0
+  - @fungi.computer/shiitake-extensions@0.12.3
+  - @fungi.computer/parakeet@0.16.6
+  - @fungi.computer/shiitake@0.21.14
+  - @fungi.computer/knapsack@0.4.23
+
 ## 0.23.3
 
 ### Patch Changes

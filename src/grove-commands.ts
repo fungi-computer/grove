@@ -25,6 +25,11 @@ export type GroveCommandActions = Readonly<{
   openPermissions: () => void;
   /** Replace an open writable conversation's draft, without sending it. */
   setDraft: (text: string) => boolean;
+  /**
+   * Stop the open conversation's Agent and every Agent it spawned; absent
+   * without an open conversation or the host's Stop Agents permission.
+   */
+  stopAll?: (() => void) | undefined;
 }>;
 
 /**
@@ -56,6 +61,35 @@ export function groveCommands(
       },
       handler: () => {
         actions().openPermissions();
+      },
+    },
+    {
+      id: "stop-all",
+      title: "Stop this Agent and its helpers",
+      category: "Conversation",
+      description:
+        "Stop this Agent and every Agent it started, and pause their schedules",
+      projections: {
+        slash: {
+          aliases: ["stop"],
+          order: 22,
+          arguments: {
+            hint: "all",
+            words: [{ word: "all", arguments: { scope: "all" } }],
+          },
+        },
+        palette: {},
+      },
+      availability: () =>
+        actions().stopAll === undefined
+          ? {
+              status: "unavailable",
+              reason:
+                "Open a conversation with an Agent this App may stop to stop it.",
+            }
+          : { status: "available" },
+      handler: () => {
+        actions().stopAll?.();
       },
     },
     {

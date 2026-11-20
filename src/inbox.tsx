@@ -27,6 +27,7 @@ import {
   agentList,
   agentRename,
   agentSessionWrite,
+  agentStop,
   openAppAgent,
   type AppAgent,
   type AppAgentCreateInput,
@@ -40,6 +41,7 @@ import type {
   AppStatusItem,
 } from "@fungi.computer/agar";
 import { useGroveCommands } from "./grove-commands.js";
+import { stopAgentTree } from "./stop-all.js";
 import { readAgentModels } from "./agent-models.js";
 import type { AgentModelList } from "@fungi.computer/shiitake/model-list";
 import { createWhistle } from "@fungi.computer/whistle";
@@ -811,6 +813,12 @@ function ConnectedInbox({
       newConversation: () => {
         if (openConversation) void startConversation(openConversation.agentId);
       },
+      stopAll:
+        openConversation && connection?.capabilities.has(agentStop)
+          ? () => {
+              void stopAgentTree(connection, openConversation.agentId);
+            }
+          : undefined,
       openPermissions: () => {
         // An empty request opens this App's permissions in the host.
         void connection?.ui
