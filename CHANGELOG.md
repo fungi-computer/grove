@@ -1,5 +1,24 @@
 # @fungi.computer/grove
 
+## 0.24.3
+
+### Patch Changes
+
+- Changes since 0.24.2:
+
+  - fix(grove): keep shelf headings still when a shelf appears above them
+  - fix(grove): keep the Websites view open instead of starting a conversation
+  - fix(grove): show only the selected Agent's head after switching Agents
+
+- Updated dependencies
+  - @fungi.computer/caps@0.12.5
+  - @fungi.computer/parakeet@0.16.9
+  - @fungi.computer/agar@0.25.1
+  - @fungi.computer/approvals@0.2.5
+  - @fungi.computer/shiitake@0.21.16
+  - @fungi.computer/shiitake-extensions@0.12.5
+  - @fungi.computer/knapsack@0.4.24
+
 ## 0.24.2
 
 ### Patch Changes

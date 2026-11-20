@@ -30,7 +30,7 @@ import {
 import type { PendingSelection } from "@fungi.computer/parakeet/conversation-opening";
 
 type Row =
-  | { kind: "heading"; key: string; title: string; gap: boolean }
+  | { kind: "heading"; key: string; title: string }
   | {
       kind: "session";
       key: string;
@@ -51,7 +51,6 @@ function flatten(
 ): Row[] {
   const rows: Row[] = [];
   if (loading) rows.push({ kind: "hint", key: "loading", loading: true });
-  let groups = 0;
   const live = listedInboxRows(view);
   const byKey = new Map(
     live.map((row) => [sessionKey(row.agentId, row.sessionId), row]),
@@ -68,7 +67,6 @@ function flatten(
       kind: "heading",
       key: title,
       title,
-      gap: groups++ > 0,
     });
     for (const session of sessions)
       rows.push({
@@ -83,7 +81,6 @@ function flatten(
       kind: "heading",
       key: "Unavailable",
       title: "Unavailable",
-      gap: groups > 0,
     });
     for (const session of view.unavailable)
       rows.push({
@@ -97,7 +94,6 @@ function flatten(
       kind: "heading",
       key: "Websites",
       title: "Websites",
-      gap: rows.length > 0,
     });
     for (const website of websites)
       rows.push({
@@ -232,7 +228,7 @@ export function InboxList({
   // through its neighbours and headings, even when the logical slots are unique.
   return (
     <div
-      className="inbox-list px-1 py-1"
+      className="inbox-list px-1 pb-1"
       onPointerEnter={() => {
         setPointerInside(true);
       }}
@@ -280,7 +276,10 @@ export function InboxList({
                 left: 0,
                 width: "100%",
                 transform: `translateY(${String(item.start)}px)`,
-                paddingTop: row.kind === "heading" && row.gap ? 4 : 0,
+                // Every heading carries its 4px lead, the first in place of
+                // the list's top padding, so a heading keeps one measured
+                // height when a shelf above it appears or leaves.
+                paddingTop: row.kind === "heading" || item.index === 0 ? 4 : 0,
               }}
             >
               {row.kind === "heading" ? (

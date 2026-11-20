@@ -1123,12 +1123,15 @@ function ConnectedInbox({
 
   // With an Agent present and nothing to pick up, open a conversation with it: the
   // composer is the first thing on screen, and Grove open → type → Enter sends.
+  // The Websites view lists no Agent rows, but choosing it is not "nothing to
+  // pick up": it must not start a conversation and leave the view.
   const autoStarted = useRef(false);
   useEffect(() => {
     if (
       services.autoOpen !== true ||
       autoStarted.current ||
       !connection ||
+      websitesOnly ||
       openConversation ||
       openRequest !== null ||
       directoryLoading ||
@@ -1159,6 +1162,7 @@ function ConnectedInbox({
     startAgent,
     startConversation,
     startingAgentId,
+    websitesOnly,
   ]);
 
   const renameAgent = useCallback(
@@ -1420,10 +1424,12 @@ function ConnectedInbox({
                   {...listResize}
                 />
               ) : null}
+              {/* Each per-Agent control remounts for a new Agent; their keys
+                  share this parent, so each carries its own prefix. */}
               <header className="inbox-header flex h-10 flex-none items-center gap-1 border-b border-base-300 pl-3 pr-1">
                 {facetAgent ? (
                   <AgentAvatarControl
-                    key={facetAgent.agentId}
+                    key={`avatar:${facetAgent.agentId}`}
                     agentId={facetAgent.agentId}
                     name={agentLabel(facetAgent)}
                     avatar={facetAgent.avatar}
@@ -1444,7 +1450,7 @@ function ConnectedInbox({
                 </CardTitle>
                 {renameTarget && canRenameAgent ? (
                   <RenameAgentControl
-                    key={renameTarget.agentId}
+                    key={`rename:${renameTarget.agentId}`}
                     agentId={renameTarget.agentId}
                     name={renameTarget.name}
                     rename={renameAgent}
@@ -1452,7 +1458,7 @@ function ConnectedInbox({
                 ) : null}
                 {facetAgent && instructions.canUse ? (
                   <AgentInstructionsControl
-                    key={facetAgent.agentId}
+                    key={`instructions:${facetAgent.agentId}`}
                     agentId={facetAgent.agentId}
                     name={facetAgent.name}
                     file={instructions.read.data}
