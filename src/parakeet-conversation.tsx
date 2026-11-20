@@ -1,3 +1,4 @@
+import almanacClient from "@fungi.computer/shiitake-extensions/almanac/client";
 import { messageAuthor } from "@fungi.computer/agar/agents";
 import goalClient from "@fungi.computer/shiitake-extensions/goal/client";
 import loopClient from "@fungi.computer/shiitake-extensions/loop/client";
@@ -32,6 +33,7 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 const sessionClients = [
   goalClient,
   loopClient,
+  almanacClient,
   planClient,
   questionClient,
   subagentsClient,

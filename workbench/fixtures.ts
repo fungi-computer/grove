@@ -1,3 +1,9 @@
+import type { Json } from "@fungi.computer/shiitake/extensions";
+import {
+  AcceptedSchema,
+  parseSessionSnapshot,
+} from "@fungi.computer/shiitake/client";
+import { almanacContract } from "@fungi.computer/shiitake-extensions/almanac";
 import type { SetupState } from "@fungi.computer/agar";
 import { seededAvatar } from "@fungi.computer/sprite/avatar";
 import {
@@ -164,6 +170,7 @@ export type GroveScenario =
   | "conversation-interrupted"
   | "conversation-cancelled"
   | "subagents"
+  | "almanac"
   | "fork"
   | "live-tool-output";
 
@@ -935,6 +942,31 @@ function previewSession(
       watcher.wake?.();
     }
   };
+  // The browser proof intercepts this fixture door and runs real Almanac storage,
+  // tools and Session controls in its Node process. No scheduling is simulated here.
+  async function almanacRequest(
+    input: Readonly<{
+      prompt?: PromptCommand;
+      command?: string;
+      input?: Json;
+    }> = {},
+  ) {
+    const response = await fetch("/__almanac-fixture", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...input, sessionId }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const result = Schema.decodeUnknownSync(
+      Schema.Struct({
+        snapshot: Schema.Json,
+        accepted: Schema.NullOr(AcceptedSchema),
+      }),
+    )(await response.json());
+    snapshot = parseSessionSnapshot(JSON.stringify(result.snapshot));
+    publish();
+    return result;
+  }
   function listen() {
     const watcher: Watcher = { frames: [], closed: false };
     watchers.add(watcher);
@@ -1156,6 +1188,12 @@ function previewSession(
     }
     if (input.type === "fork" && scenario === "fork") return forkAt(input);
     if (input.type === "prompt") {
+      if (scenario === "almanac")
+        return almanacRequest({ prompt: input }).then(({ accepted }) => {
+          if (accepted === null)
+            throw new Error("Schedule prompt was not admitted");
+          return accepted;
+        });
       if (modelsQueue) return admitQueued(input);
       if (scenario === "stable-inbox" || scenario === "two-frames")
         return replyInInbox(input);
@@ -1177,21 +1215,26 @@ function previewSession(
     },
     extension: (id) => ({
       call:
-        id === gardenExtensionId
+        scenario === "almanac" && id === almanacContract.id
           ? async (command, input) => {
-              const attempt = ++gardenCalls;
-              if (scenario === "command-retry" && attempt >= 2) {
-                // Both attempts stay in flight long enough to inspect the
-                // ordinary running row, not just the failure or final result.
-                await new Promise<void>((resolve) => {
-                  setTimeout(resolve, 1250);
-                });
-                if (attempt === 2)
-                  throw new Error("The watering service is unavailable.");
-              }
-              return gardenCall(command, input);
+              await almanacRequest({ command, input });
+              return { type: "done" };
             }
-          : unsupported,
+          : id === gardenExtensionId
+            ? async (command, input) => {
+                const attempt = ++gardenCalls;
+                if (scenario === "command-retry" && attempt >= 2) {
+                  // Both attempts stay in flight long enough to inspect the
+                  // ordinary running row, not just the failure or final result.
+                  await new Promise<void>((resolve) => {
+                    setTimeout(resolve, 1250);
+                  });
+                  if (attempt === 2)
+                    throw new Error("The watering service is unavailable.");
+                }
+                return gardenCall(command, input);
+              }
+            : unsupported,
     }),
     send: unsupported,
     cancel: unsupported,
@@ -1204,18 +1247,22 @@ function previewSession(
         return Promise.resolve();
       },
     },
-    read: () => Promise.resolve(snapshot),
+    read: async () => {
+      if (scenario === "almanac") await almanacRequest();
+      return snapshot;
+    },
     subscribe: () => listen().changes,
-    watch: () => {
+    watch: async () => {
+      if (scenario === "almanac") await almanacRequest();
       const watcher = listen();
-      return Promise.resolve({
+      return {
         snapshot,
         changes: watcher.changes,
         close: () => {
           watcher.close();
           return Promise.resolve();
         },
-      });
+      };
     },
   };
 }

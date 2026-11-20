@@ -412,6 +412,19 @@ export const SubAgents = () => (
     }}
   />
 );
+export const RecurringAsks = () => (
+  <Workbench
+    scenario="almanac"
+    openRequest={{
+      kind: "navigate",
+      requestId: "grove-browser-open-almanac",
+      params: [
+        { key: "agent", value: "gardener" },
+        { key: "session", value: "gardener-1" },
+      ],
+    }}
+  />
+);
 export const MissingSession = () => (
   <Workbench
     openRequest={{
