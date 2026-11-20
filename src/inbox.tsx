@@ -207,6 +207,7 @@ export function Conversation({
   opening = false,
   label = "Conversation",
   loadingAgent,
+  agentName,
 }: {
   connection: AppRoot | null;
   /** Whether the host has a model connected, when it says. */
@@ -234,6 +235,8 @@ export function Conversation({
   label?: string;
   /** The Agent whose head the loading state draws, when the host knows it; absent, the mascot. */
   loadingAgent?: AppAgent | undefined;
+  /** The Agent's live name, shown in the composer as "Message <name>…". */
+  agentName?: string | undefined;
 }): React.JSX.Element {
   const session = open.session;
   const pane = useRef<HTMLElement>(null);
@@ -352,6 +355,7 @@ export function Conversation({
             models={models}
             autoFocus={autoFocus}
             empty={empty}
+            agentName={agentName}
           />
         </Suspense>
       )}
@@ -1658,6 +1662,7 @@ function ConnectedInbox({
             models={appContext?.setup?.models}
             autoFocus={desktop && creation === null}
             opening={pendingSelection !== null}
+            agentName={openAgent?.name}
           />
         ) : !connection || directoryLoading ? (
           <LoadingState
@@ -1796,6 +1801,7 @@ function ConnectedInbox({
             onOpen={openBeside}
             models={appContext?.setup?.models}
             label="Beside conversation"
+            agentName={agentById.get(besideConversation.agentId)?.name}
           />
         </section>
       )}

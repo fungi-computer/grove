@@ -622,6 +622,7 @@ function ChatGill({
             empty={<ChatGillEmpty agent={headAgent} />}
             label="Chat"
             loadingAgent={headAgent}
+            agentName={headAgent?.name}
             models={appContext?.setup?.models}
             onForked={onForked}
             onOpen={(target) => {

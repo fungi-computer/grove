@@ -75,6 +75,7 @@ export function ParakeetConversation({
   models,
   autoFocus,
   empty,
+  agentName,
 }: {
   session: ParakeetSession;
   draftIdentity: ParakeetDraftIdentity;
@@ -93,6 +94,8 @@ export function ParakeetConversation({
   autoFocus?: boolean | undefined;
   /** What an empty conversation shows; absent, Parakeet's quiet prompt. */
   empty?: ReactNode | undefined;
+  /** The Agent's live name, so the composer says "Message <name>…". */
+  agentName?: string | undefined;
 }): React.JSX.Element {
   const ui = connection?.ui ?? null;
   const capabilities = connection?.capabilities;
@@ -164,6 +167,11 @@ export function ParakeetConversation({
           hostFacts={hostFacts}
           autoFocus={autoFocus}
           empty={empty}
+          placeholder={
+            agentName === undefined || agentName === ""
+              ? undefined
+              : `Message ${agentName}…`
+          }
           composerActionVariant="outline"
           commands={commands}
           renderAssistantAttachment={renderAssistantAttachment}
