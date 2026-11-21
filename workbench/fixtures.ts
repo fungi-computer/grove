@@ -19,6 +19,7 @@ import type { GameSharePreview } from "../src/game-share-card.js";
 import { printsPanelPng } from "./prints-panel-image.js";
 import {
   agentAvatar,
+  agentExtensions,
   agentInstructions,
   agentManage,
   agentList,
@@ -1734,6 +1735,46 @@ export function createGroveFixture(
         limit,
       };
     };
+    // Installed Apps that add to an Agent's runs. Orchard stops being one while
+    // the owner reads the list, so attaching it is refused with its cause.
+    const extensionNames = new Map([
+      ["notes", "Notes"],
+      ["garden-journal", "Garden journal"],
+      ["shed-planner", "Shed planner"],
+      ["orchard", "Orchard keeper"],
+    ]);
+    const attached = new Map<string, Set<string>>([
+      ["gardener", new Set(["notes"])],
+    ]);
+    const extensionsOf = (agentId: string) => {
+      const have = attached.get(agentId) ?? new Set<string>();
+      const named = (id: string) => ({
+        installationId: id,
+        name: extensionNames.get(id) ?? id,
+      });
+      return {
+        agentId,
+        attached: [...have].map(named),
+        available: [...extensionNames.keys()]
+          .filter((id) => !have.has(id))
+          .map(named),
+      };
+    };
+    capabilities.provide(agentExtensions, {
+      list: ({ agentId }) => Promise.resolve(extensionsOf(agentId)),
+      attach: ({ agentId, installationId }) => {
+        if (installationId === "orchard")
+          return Promise.resolve({ error: "not_extension" as const });
+        const have = attached.get(agentId) ?? new Set<string>();
+        have.add(installationId);
+        attached.set(agentId, have);
+        return Promise.resolve(extensionsOf(agentId));
+      },
+      detach: ({ agentId, installationId }) => {
+        attached.get(agentId)?.delete(installationId);
+        return Promise.resolve(extensionsOf(agentId));
+      },
+    });
     let librarianSaves = 0;
     capabilities.provide(agentInstructions, {
       read: ({ agentId }) => Promise.resolve(view(agentId)),

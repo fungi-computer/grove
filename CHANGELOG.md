@@ -1,5 +1,31 @@
 # @fungi.computer/grove
 
+## 0.25.0
+
+### Minor Changes
+
+- Changes since 0.24.6:
+
+  - fix(grove): say a denied extension change is not allowed, not a lost
+    connection
+  - fix(grove): draw Detach as a button like Attach, only quieter
+  - feat(grove): attach and detach an Agent's hosted extensions
+  - fix(parakeet): a refused approval prompt denies the request and says so once
+  - fix(grove): never take the composer over blank; say who must answer
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.26.0
+  - @fungi.computer/caps@0.12.8
+  - @fungi.computer/parakeet@0.16.12
+  - @fungi.computer/shiitake-extensions@0.12.8
+  - @fungi.computer/shiitake@0.22.1
+  - @fungi.computer/knapsack@0.4.25
+
 ## 0.24.6
 
 ### Patch Changes

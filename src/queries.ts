@@ -1,5 +1,6 @@
 import type { AppRoot } from "@fungi.computer/agar";
 import {
+  agentExtensions,
   agentList,
   agentInstructions,
   agentManage,
@@ -15,6 +16,8 @@ import {
   type AppAgent,
   type AppAgentAvatarInput,
   type AppAgentCreateInput,
+  type AppAgentExtensions,
+  type AppAgentExtensionsResult,
   type AppAgentInstructions,
   type AppAgentToolPolicyStatus,
 } from "@fungi.computer/agar/agents";
@@ -167,6 +170,45 @@ export function useAgentToolPolicy(
     },
   });
   return { canRead, status, approve };
+}
+
+/** The hosted extensions on the open Agent: what is attached and what its owner could attach. */
+export function useAgentExtensions(
+  app: AppRoot | null,
+  agentId: string | null,
+) {
+  const client = useQueryClient();
+  const canUse = app?.capabilities.has(agentExtensions) === true;
+  const key = queryKeys.of(app, "agent-extensions", agentId ?? "none");
+  const read = useQuery({
+    ...capabilityQuery(app, agentExtensions, key, (handle) =>
+      agentId === null ? Promise.resolve(null) : handle.list({ agentId }),
+    ),
+    enabled: canUse && agentId !== null,
+  });
+  const change = useMutation({
+    mutationFn: (input: {
+      agentId: string;
+      installationId: string;
+      kind: "attach" | "detach";
+    }): Promise<AppAgentExtensionsResult> => {
+      if (!app) throw new Error("No App connection");
+      const handle = app.capabilities.require(agentExtensions);
+      const { agentId: id, installationId } = input;
+      return input.kind === "attach"
+        ? handle.attach({ agentId: id, installationId })
+        : handle.detach({ agentId: id, installationId });
+    },
+    onSuccess: (result, input) => {
+      // A refusal changes nothing; the list stays as the host last read it.
+      if (!("error" in result))
+        client.setQueryData<AppAgentExtensions | null>(
+          queryKeys.of(app, "agent-extensions", input.agentId),
+          result,
+        );
+    },
+  });
+  return { canUse, read, change };
 }
 
 /** The AGENTS.md on the open Agent's Home Computer, readable and savable by its owner. */

@@ -193,6 +193,17 @@ function ApprovalOwner({
     appName,
     show,
   ]);
+  // A member who cannot answer is told once, in a line beside a composer that
+  // stays usable: the request waits for someone who can.
+  const waitingOnOthers = view?.record.state === "pending" && !view.canAnswer;
+  useEffect(() => {
+    if (!waitingOnOthers) return undefined;
+    const message = `Waiting for approval from someone who can use ${appName}.`;
+    store.report({ tone: "info", message });
+    return () => {
+      if (store.snapshot().notice?.message === message) store.report(undefined);
+    };
+  }, [waitingOnOthers, appName, store]);
   useApprovalAwaiting({
     source,
     store,
@@ -201,6 +212,9 @@ function ApprovalOwner({
     width: 72,
     noteLimit: MAX_APPROVAL_DENIAL_NOTE_LENGTH,
     onFailure: reportAnswerFailure,
+    onUnshowable: (message) => {
+      store.toast({ variant: "error", message });
+    },
   });
   return null;
 }

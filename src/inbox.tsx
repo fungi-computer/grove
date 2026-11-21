@@ -34,6 +34,10 @@ import {
 } from "@fungi.computer/agar/agents";
 import { RenameAgentControl } from "./rename-agent-control.js";
 import { AllowAppToolsControl } from "./allow-app-tools-control.js";
+import {
+  AgentExtensionsControl,
+  type ExtensionChange,
+} from "./agent-extensions-control.js";
 import type {
   AgentAccessOperation,
   AppRoot,
@@ -67,6 +71,7 @@ import { firstSessionRequestId } from "./first-session.js";
 import {
   useInboxData,
   useAgentInstructions,
+  useAgentExtensions,
   useAgentToolPolicy,
 } from "./queries.js";
 import {
@@ -384,6 +389,20 @@ export function InboxApp(props: InboxProps): React.JSX.Element {
       {...props}
     />
   );
+}
+
+/** What a host's refusal to change an Agent's extensions means, in plain words. */
+function extensionRefusal(
+  kind: "attach" | "detach",
+  label: string,
+  error: "not_found" | "not_granted" | "not_extension",
+): string {
+  const action = `Couldn't ${kind} ${label}`;
+  if (error === "not_extension")
+    return `${action}: it isn't an enabled App that adds to an Agent anymore.`;
+  if (error === "not_granted")
+    return `${action}: only the owner can change an Agent's extensions.`;
+  return `${action}: this Agent no longer exists.`;
 }
 
 function RoutedInbox(props: InboxProps): React.JSX.Element {
@@ -1086,6 +1105,10 @@ function ConnectedInbox({
     connection,
     facetAgent?.agentId ?? null,
   );
+  const extensions = useAgentExtensions(
+    connection,
+    facetAgent?.agentId ?? null,
+  );
   const saveInstructions = useCallback(
     async (
       agentId: string,
@@ -1110,6 +1133,45 @@ function ConnectedInbox({
     if (latest.data === undefined) throw new Error("No instructions file");
     return latest.data;
   }, [instructions.read.refetch]);
+  const changeExtension = useCallback(
+    async (change: ExtensionChange) => {
+      if (!facetAgent) return;
+      const known = [
+        ...(extensions.read.data?.attached ?? []),
+        ...(extensions.read.data?.available ?? []),
+      ].find((item) => item.installationId === change.installationId);
+      const label = known?.name ?? "that App";
+      const say = (message: string) => {
+        void connection?.ui
+          .showToast({ message, tone: "error" })
+          .catch((cause: unknown) => {
+            console.error("Extensions toast failed", cause);
+          });
+      };
+      try {
+        const result = await extensions.change.mutateAsync({
+          agentId: facetAgent.agentId,
+          ...change,
+        });
+        if ("error" in result)
+          say(extensionRefusal(change.kind, label, result.error));
+      } catch (cause) {
+        console.error("Agent extension change failed", cause);
+        // The host refused this App for this Agent; the network is fine.
+        say(
+          cause instanceof AppError && cause.code === "CAPABILITY_DENIED"
+            ? `Couldn't ${change.kind} ${label}: this App isn't allowed to change this Agent's extensions.`
+            : `Couldn't ${change.kind} ${label}. Check your connection and try again.`,
+        );
+      }
+    },
+    [
+      connection,
+      facetAgent,
+      extensions.read.data,
+      extensions.change.mutateAsync,
+    ],
+  );
   const notifyInstructions = useCallback(
     (message: string, tone: "error" | "warning") => {
       void connection?.ui
@@ -1466,6 +1528,16 @@ function ConnectedInbox({
                     save={saveInstructions}
                     reload={reloadInstructions}
                     notify={notifyInstructions}
+                  />
+                ) : null}
+                {facetAgent && extensions.canUse ? (
+                  <AgentExtensionsControl
+                    key={`extensions:${facetAgent.agentId}`}
+                    agentId={facetAgent.agentId}
+                    name={facetAgent.name}
+                    extensions={extensions.read.data ?? undefined}
+                    loading={extensions.read.isPending}
+                    change={changeExtension}
                   />
                 ) : null}
                 {connection && (canStart || canCreateAgent) ? (
