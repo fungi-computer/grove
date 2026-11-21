@@ -1,3 +1,4 @@
+import { failureMessage } from "@fungi.computer/agar/errors";
 import type { AppIdentity, AppRoot } from "@fungi.computer/agar";
 import {
   agentManage,
@@ -337,7 +338,7 @@ function ChatGill({
   const open = shownConversation(snapshot.state);
   const pending = openingTarget(snapshot.state);
   const creating = snapshot.state.creating !== null;
-  const [startFailed, setStartFailed] = useState(false);
+  const [startFailure, setStartFailure] = useState(false);
 
   const latest = useMemo(() => {
     if (agent === undefined) return undefined;
@@ -365,7 +366,7 @@ function ChatGill({
       if (!connection || !view || agent === undefined) return;
       const request = view.create(cause);
       if (!request.accepted || request.ticket === null) return;
-      setStartFailed(false);
+      setStartFailure(false);
       try {
         const generate = () => sessionCreateRequests.request.generate();
         // The automatic first conversation shares one request with Grove's
@@ -392,10 +393,13 @@ function ChatGill({
           "Grove chat widget could not start a conversation",
           cause,
         );
-        setStartFailed(true);
+        setStartFailure(true);
         showConversationToast(connection.ui, {
           variant: "error",
-          message: "The conversation could not be started. Try again.",
+          message: failureMessage(
+            "The conversation could not be started",
+            cause,
+          ),
         });
       }
     },
@@ -446,7 +450,7 @@ function ChatGill({
           console.error("Grove chat widget could not open Grove", cause);
           showConversationToast(connection.ui, {
             variant: "error",
-            message: "Grove could not be opened. Try again.",
+            message: failureMessage("Grove could not be opened", cause),
           });
         }
       })();
@@ -544,9 +548,14 @@ function ChatGill({
     body = (
       <div className="m-auto flex flex-col items-center gap-sm">
         <p className="text-sm text-dim">
-          {startFailed || snapshot.error !== null
+          {startFailure
             ? "The conversation could not be started."
-            : "No conversation is open."}
+            : snapshot.error !== null
+              ? failureMessage(
+                  "The conversation could not be started",
+                  snapshot.error,
+                )
+              : "No conversation is open."}
         </p>
         <Button
           variant="outline"

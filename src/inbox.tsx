@@ -1,3 +1,4 @@
+import { failureMessage } from "@fungi.computer/agar/errors";
 import { AppError } from "@fungi.computer/agar";
 import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
 import { Alert } from "@fungi.computer/caps/components/alert";
@@ -477,11 +478,11 @@ function ConnectedInbox({
         client.deleteSession(target.sessionId),
       );
     },
-    onError: () => {
+    onError: (cause) => {
       if (!connection) return;
       showConversationToast(connection.ui, {
         variant: "error",
-        message: "The conversation could not be deleted. Try again.",
+        message: failureMessage("The conversation could not be deleted", cause),
       });
     },
     onSuccess: (_deleted, target) => {
@@ -759,7 +760,10 @@ function ConnectedInbox({
         if (conversationShown)
           showConversationToast(connection.ui, {
             variant: "error",
-            message: "The conversation could not be started. Try again.",
+            message: failureMessage(
+              "The conversation could not be started",
+              cause,
+            ),
           });
         return cause instanceof Error
           ? cause.message
@@ -1123,7 +1127,7 @@ function ConnectedInbox({
           return "conflict";
         if (cause instanceof AppError && cause.code === "FILE_TOO_LARGE")
           return "too_large";
-        return "failed";
+        return { failed: cause };
       }
     },
     [instructions.save.mutateAsync],

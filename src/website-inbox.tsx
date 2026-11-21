@@ -99,10 +99,7 @@ export function useWebsiteInbox(app: AppRoot | null, services: Services) {
             onConversation: setOpen,
             onError: (message) => {
               if (message === null) return;
-              showConversationToast(app.ui, {
-                variant: "error",
-                message: "That conversation could not be opened. Try again.",
-              });
+              showConversationToast(app.ui, { variant: "error", message });
             },
           }),
     [app, client, services],

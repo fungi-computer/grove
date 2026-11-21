@@ -1,3 +1,4 @@
+import { failureMessage } from "@fungi.computer/agar/errors";
 import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
 import { Button } from "@fungi.computer/caps/components/button";
@@ -110,7 +111,7 @@ function PrintsResultAction({
       console.error("Chat print navigation failed", cause);
       showConversationToast(ui, {
         variant: "error",
-        message: "Prints could not be opened. Try again.",
+        message: failureMessage("Prints could not be opened", cause),
       });
     } finally {
       setPending(false);

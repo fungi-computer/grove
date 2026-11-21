@@ -1,3 +1,4 @@
+import { failureMessage } from "@fungi.computer/agar/errors";
 import { useMutation } from "@tanstack/react-query";
 import { SetupNotice } from "@fungi.computer/caps/blocks/setup-notice";
 import type {
@@ -250,7 +251,7 @@ function AgentCreditNotice({
       need="Add credit to create your Agent"
       cause={
         billing.isError
-          ? "Billing could not open. Try again."
+          ? failureMessage("Billing could not open", billing.error)
           : "This Team needs credit to run Agents and Computers."
       }
       fix={{

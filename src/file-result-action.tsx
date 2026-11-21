@@ -1,3 +1,4 @@
+import { failureMessage } from "@fungi.computer/agar/errors";
 import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
 import { Button } from "@fungi.computer/caps/components/button";
@@ -38,7 +39,7 @@ export function FileResultAction({
       console.error("Chat file navigation failed", cause);
       showConversationToast(ui, {
         variant: "error",
-        message: "The file could not be opened. Try again.",
+        message: failureMessage("The file could not be opened", cause),
       });
     } finally {
       setPending(false);
