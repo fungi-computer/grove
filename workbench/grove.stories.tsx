@@ -261,6 +261,10 @@ export const TileNoModel = () => (
 export const ChatGillEmpty = () => (
   <Workbench scenario="starter" models="ready" chat={{ size: "L" }} />
 );
+/** The tile when its first conversation cannot start: the toast names why. */
+export const ChatGillStartFailed = () => (
+  <Workbench scenario="start-failed" models="ready" chat={{ size: "L" }} />
+);
 /** The same tile mid-conversation, its newest turn still running. */
 export const ChatGillLive = () => (
   <Workbench models="ready" chat={{ size: "L" }} />

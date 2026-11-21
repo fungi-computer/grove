@@ -1,3 +1,4 @@
+import { failureMessage } from "@fungi.computer/agar/errors";
 import type { AppAgentInstructions } from "@fungi.computer/agar";
 import { Button } from "@fungi.computer/caps/components/button";
 import { ConfirmAction } from "@fungi.computer/caps/components/confirm-action";
@@ -20,7 +21,8 @@ import { NotebookPen } from "lucide-react";
 import { useId, useState } from "react";
 
 /** How a save ended; the control words each for the owner. */
-export type InstructionsSave = "saved" | "conflict" | "too_large" | "failed";
+export type InstructionsSave =
+  "saved" | "conflict" | "too_large" | Readonly<{ failed: unknown }>;
 
 /** What an empty editor suggests; it is a placeholder, never saved text. */
 function starterTemplate(name: string): string {
@@ -86,7 +88,7 @@ export function AgentInstructionsControl({
     } catch (cause) {
       // The dialog stays as it is, with the owner's edits.
       console.error("Instructions reload failed", cause);
-      notify("Couldn't reload this file. Try again.", "error");
+      notify(failureMessage("Couldn't reload this file", cause), "error");
     }
   };
   return (
@@ -219,7 +221,10 @@ export function AgentInstructionsControl({
                       notify(
                         result === "too_large"
                           ? "That file is too large to save."
-                          : "The instructions could not be saved. Try again.",
+                          : failureMessage(
+                              "The instructions could not be saved",
+                              result.failed,
+                            ),
                         "error",
                       );
                   });
