@@ -93,6 +93,7 @@ export const appBackend = defineAppBackend<GroveMethodContext>({
       description:
         "Mark an existing visible Inbox Session as visited and return its target.",
       effect: "write",
+      label: "Open an Inbox conversation",
       requires: ["agent.read"],
       input: target,
       output: target.extend(inboxVisitResultSchema.shape),
@@ -108,6 +109,7 @@ export const appBackend = defineAppBackend<GroveMethodContext>({
       description:
         "Send follow-up text into an existing authorized Session without interrupting it. Limited to ten sends per minute per installation and Session; returns send_budget_exceeded with retryAfterMs when full. This does not create a Session.",
       effect: "write",
+      label: "Send a message to a conversation",
       requires: ["agent.send"],
       input: target.extend({
         requestId: id.refine(

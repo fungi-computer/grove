@@ -1,5 +1,23 @@
 # @fungi.computer/grove
 
+## 0.26.0
+
+### Minor Changes
+
+- Changes since 0.25.0:
+
+  - feat(agar): approval cards read a method's own short label
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.27.0
+  - @fungi.computer/parakeet@0.17.0
+  - @fungi.computer/shiitake@0.22.2
+  - @fungi.computer/shiitake-extensions@0.12.9
+  - @fungi.computer/knapsack@0.4.26
+
 ## 0.25.0
 
 ### Minor Changes
