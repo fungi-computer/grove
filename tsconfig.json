@@ -25,11 +25,5 @@
     "types": ["node", "vitest/globals"],
     "verbatimModuleSyntax": true
   },
-  "include": [
-    "src",
-    "workbench",
-    ".ladle/**/*.tsx",
-    "test/**/*.ts",
-    "vite.config.ts"
-  ]
+  "include": ["src", "workbench", ".ladle/**/*.tsx", "test", "vite.config.ts"]
 }

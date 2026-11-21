@@ -1,5 +1,34 @@
 # @fungi.computer/grove
 
+## 0.27.0
+
+### Minor Changes
+
+- Changes since 0.26.1:
+
+  - fix(grove): keep agent status rows compact and failures in toasts
+  - fix(grove): show one actionable draft conflict toast
+  - fix(grove): release settled drafts when a composer closes
+  - fix(grove): serialize draft recovery retries
+  - feat(grove): restore acknowledged composer text after reload
+  - feat(grove): reveal spawned agents from the conversation footer
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.27.2
+  - @fungi.computer/approvals@0.2.6
+  - @fungi.computer/caps@0.12.9
+  - @fungi.computer/parakeet@0.17.2
+  - @fungi.computer/shiitake-extensions@0.13.0
+  - @fungi.computer/shiitake@0.22.4
+  - @fungi.computer/knapsack@0.4.27
+
 ## 0.26.1
 
 ### Patch Changes

@@ -78,6 +78,17 @@ const subagentSlots = {
   [subagentsContract.id]: {
     status: "running" as const,
     revision: "sha256:grove-subagents-fixture",
+    catalog: {
+      protocol: "whistle.catalog/v1" as const,
+      commands: [
+        {
+          id: "agents",
+          title: "Agents",
+          category: "Conversation",
+          description: "Show or hide this conversation's sub-agents",
+        },
+      ],
+    },
     value: Schema.encodeSync(SubagentsProjection)({
       agents: [
         {
@@ -113,7 +124,7 @@ const subagentSlots = {
       escalated: 0,
       waitingOn: [],
       escalatedBy: [],
-      expanded: true,
+      expanded: false,
     }),
   },
 };
@@ -1217,26 +1228,50 @@ function previewSession(
     },
     extension: (id) => ({
       call:
-        scenario === "almanac" && id === almanacContract.id
-          ? async (command, input) => {
-              await almanacRequest({ command, input });
+        scenario === "subagents" && id === subagentsContract.id
+          ? async (command) => {
+              if (command !== "agents") return unsupported();
+              const slot = snapshot.extensions[id];
+              if (slot.status !== "running") return unsupported();
+              const value = Schema.decodeUnknownSync(SubagentsProjection)(
+                slot.value,
+              );
+              snapshot = {
+                ...snapshot,
+                extensions: {
+                  ...snapshot.extensions,
+                  [id]: {
+                    ...slot,
+                    value: Schema.encodeSync(SubagentsProjection)({
+                      ...value,
+                      expanded: !value.expanded,
+                    }),
+                  },
+                },
+              };
+              publish();
               return { type: "done" };
             }
-          : id === gardenExtensionId
+          : scenario === "almanac" && id === almanacContract.id
             ? async (command, input) => {
-                const attempt = ++gardenCalls;
-                if (scenario === "command-retry" && attempt >= 2) {
-                  // Both attempts stay in flight long enough to inspect the
-                  // ordinary running row, not just the failure or final result.
-                  await new Promise<void>((resolve) => {
-                    setTimeout(resolve, 1250);
-                  });
-                  if (attempt === 2)
-                    throw new Error("The watering service is unavailable.");
-                }
-                return gardenCall(command, input);
+                await almanacRequest({ command, input });
+                return { type: "done" };
               }
-            : unsupported,
+            : id === gardenExtensionId
+              ? async (command, input) => {
+                  const attempt = ++gardenCalls;
+                  if (scenario === "command-retry" && attempt >= 2) {
+                    // Both attempts stay in flight long enough to inspect the
+                    // ordinary running row, not just the failure or final result.
+                    await new Promise<void>((resolve) => {
+                      setTimeout(resolve, 1250);
+                    });
+                    if (attempt === 2)
+                      throw new Error("The watering service is unavailable.");
+                  }
+                  return gardenCall(command, input);
+                }
+              : unsupported,
     }),
     send: unsupported,
     cancel: unsupported,

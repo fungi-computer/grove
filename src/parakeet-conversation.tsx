@@ -27,7 +27,15 @@ import { claimsPrintsPanel, ImageResultCard } from "./image-result-card.js";
 import { ApprovalOwners } from "./approval-owners.js";
 import { GameShareCard, gameShareDisplayText } from "./game-share-card.js";
 import "@fungi.computer/stipe/fonts-mono.css";
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { useDraftMirror } from "./draft-mirror-provider.js";
 
 // The same Session footer entries the TUI mounts (apps/tui/src/cli.tsx).
 const sessionClients = [
@@ -46,7 +54,11 @@ const renderAssistantAttachment = (reply: string) => (
 function ComposeDraft({
   prefill,
   onPrefilled,
+  identity,
+  children,
 }: {
+  identity: ParakeetDraftIdentity;
+  children: ReactNode;
   prefill: Readonly<{
     requestId: string;
     text: string;
@@ -54,14 +66,101 @@ function ComposeDraft({
   onPrefilled: () => void;
 }) {
   const composer = useComposer();
+  const mirror = useDraftMirror();
+  const [seed, setSeed] = useState<{ mirror: typeof mirror } | null>(null);
+  const seeded = seed !== null && seed.mirror === mirror;
   const handled = useRef<string | null>(null);
+  const { agentId, sessionId } = identity;
+  useEffect(
+    () => mirror?.attach({ agentId, sessionId }),
+    [agentId, mirror, sessionId],
+  );
   useEffect(() => {
+    if (mirror === null || (mirror !== undefined && !mirror.ready)) return;
+    if (!seeded) {
+      const text =
+        prefill?.text ??
+        mirror?.text(identity, composer.draft) ??
+        composer.draft;
+      composer.setDraft(text);
+      mirror?.stage(identity, text);
+      setSeed({ mirror });
+      if (prefill) {
+        handled.current = prefill.requestId;
+        onPrefilled();
+      }
+      return;
+    }
     if (!prefill || handled.current === prefill.requestId) return;
     handled.current = prefill.requestId;
     composer.setDraft(prefill.text);
     onPrefilled();
-  }, [composer.setDraft, onPrefilled, prefill]);
-  return null;
+  }, [
+    composer.draft,
+    composer.setDraft,
+    identity,
+    mirror,
+    mirror?.ready,
+    onPrefilled,
+    prefill,
+    seeded,
+  ]);
+  useEffect(() => {
+    if (seeded) mirror?.stage(identity, composer.draft);
+  }, [composer.draft, identity, mirror, seeded]);
+  if (!seeded) return null;
+  const status = mirror?.status(identity);
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1">{children}</div>
+      {mirror && (
+        <div
+          className="flex h-6 shrink-0 items-center justify-end gap-2 px-2 text-xs text-base-content/60"
+          data-draft-status={status}
+        >
+          <span role="status">
+            {status === "restored"
+              ? "Draft restored"
+              : status === "saving"
+                ? "Saving…"
+                : status === "not-saved"
+                  ? "Draft not saved"
+                  : "Text saved"}
+          </span>
+          {mirror.conflicted(identity) ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  mirror.choose(identity, "local");
+                }}
+              >
+                Keep mine
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  mirror.choose(identity, "saved");
+                  composer.setDraft(mirror.text(identity));
+                }}
+              >
+                Use saved
+              </button>
+            </>
+          ) : status === "not-saved" ? (
+            <button
+              type="button"
+              onClick={() => {
+                void mirror.retry();
+              }}
+            >
+              Retry
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ParakeetConversation({
@@ -153,33 +252,39 @@ export function ParakeetConversation({
       authorOf={messageAuthor}
       onToast={onToast}
     >
-      <ComposeDraft prefill={prefill} onPrefilled={onPrefilled} />
-      <ApprovalOwners
-        key={draftIdentity.sessionId}
-        capabilities={capabilities}
-        agentId={draftIdentity.agentId}
-        sessionId={draftIdentity.sessionId}
+      <ComposeDraft
+        key={JSON.stringify([draftIdentity.agentId, draftIdentity.sessionId])}
+        identity={draftIdentity}
+        prefill={prefill}
+        onPrefilled={onPrefilled}
       >
-        <ParakeetView
-          hideSoleAuthor
-          onLink={onLink}
-          onOpen={onOpen}
-          hostFacts={hostFacts}
-          autoFocus={autoFocus}
-          empty={empty}
-          placeholder={
-            agentName === undefined || agentName === ""
-              ? undefined
-              : `Message ${agentName}…`
-          }
-          composerActionVariant="outline"
-          commands={commands}
-          renderAssistantAttachment={renderAssistantAttachment}
-          formatAssistantText={gameShareDisplayText}
-          renderToolActions={renderToolActions}
-          claimsToolMedia={claimsToolMedia}
-        />
-      </ApprovalOwners>
+        <ApprovalOwners
+          key={draftIdentity.sessionId}
+          capabilities={capabilities}
+          agentId={draftIdentity.agentId}
+          sessionId={draftIdentity.sessionId}
+        >
+          <ParakeetView
+            hideSoleAuthor
+            onLink={onLink}
+            onOpen={onOpen}
+            hostFacts={hostFacts}
+            autoFocus={autoFocus}
+            empty={empty}
+            placeholder={
+              agentName === undefined || agentName === ""
+                ? undefined
+                : `Message ${agentName}…`
+            }
+            composerActionVariant="outline"
+            commands={commands}
+            renderAssistantAttachment={renderAssistantAttachment}
+            formatAssistantText={gameShareDisplayText}
+            renderToolActions={renderToolActions}
+            claimsToolMedia={claimsToolMedia}
+          />
+        </ApprovalOwners>
+      </ComposeDraft>
     </ParakeetProvider>
   );
 }
