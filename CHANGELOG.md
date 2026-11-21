@@ -1,5 +1,23 @@
 # @fungi.computer/grove
 
+## 0.27.1
+
+### Patch Changes
+
+- Changes since 0.27.0:
+
+  - fix(grove): retain approval choices when the App connection changes
+  - fix(grove): keep footer markers and narrow composer controls clear
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.28.0
+  - @fungi.computer/caps@0.13.0
+  - @fungi.computer/parakeet@0.17.3
+  - @fungi.computer/shiitake@0.22.5
+  - @fungi.computer/shiitake-extensions@0.13.1
+
 ## 0.27.0
 
 ### Minor Changes
