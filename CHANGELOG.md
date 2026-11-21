@@ -1,5 +1,18 @@
 # @fungi.computer/grove
 
+## 0.24.4
+
+### Patch Changes
+
+- Changes since 0.24.3:
+
+  - fix(grove): look for approvals in an open conversation even with no running
+    call
+
+- Updated dependencies
+  - @fungi.computer/caps@0.12.6
+  - @fungi.computer/parakeet@0.16.10
+
 ## 0.24.3
 
 ### Patch Changes

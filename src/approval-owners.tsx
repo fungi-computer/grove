@@ -21,14 +21,22 @@ import {
 
 /** How often a running tool call is asked what it is waiting on. */
 const POLL_MS = 2000;
+/**
+ * How often an open conversation looks when nothing reports a running call.
+ * Whether live activity marks a call that waits on a person as running depends
+ * on the rail that runs the Agent (a run on a celld exec shard never found its
+ * approval while this signal gated the poll), so an open conversation must
+ * still find its approval, only more slowly.
+ */
+const IDLE_POLL_MS = 5000;
 
 /**
  * The records this Agent's running tool calls are waiting on. A call that
  * needs approval stays open, so no tool result names its record: the owner
- * lists the pending records while any call is running and once more when the
- * last one ends.
+ * lists the pending records every few seconds while the conversation is open,
+ * faster while any call is running, and once more when the last one ends.
  */
-function useWaitingRecordIds(
+export function useWaitingRecordIds(
   capabilities: CapabilityDirectory | undefined,
   agentId: string,
   sessionId: string,
@@ -63,11 +71,10 @@ function useWaitingRecordIds(
       }
     }
     void read();
-    if (!running)
-      return () => {
-        active = false;
-      };
-    const timer = setInterval(() => void read(), POLL_MS);
+    const timer = setInterval(
+      () => void read(),
+      running ? POLL_MS : IDLE_POLL_MS,
+    );
     return () => {
       active = false;
       clearInterval(timer);
