@@ -1191,8 +1191,11 @@ function ConnectedInbox({
   // composer is the first thing on screen, and Grove open → type → Enter sends.
   // The Websites view lists no Agent rows, but choosing it is not "nothing to
   // pick up": it must not start a conversation and leave the view.
+  // Opening a creation dialog is the person's own choice: it ends the
+  // automatic start for good, so nothing starts behind it or after it closes.
   const autoStarted = useRef(false);
   useEffect(() => {
+    if (creation !== null) autoStarted.current = true;
     if (
       services.autoOpen !== true ||
       autoStarted.current ||
@@ -1216,6 +1219,7 @@ function ConnectedInbox({
   }, [
     canWriteAgent,
     connection,
+    creation,
     directoryLoading,
     error,
     inboxFailed,

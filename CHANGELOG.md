@@ -1,5 +1,13 @@
 # @fungi.computer/grove
 
+## 0.27.7
+
+### Patch Changes
+
+- Changes since 0.27.6:
+
+  - fix(grove): keep the new conversation dialog steady while the inbox loads
+
 ## 0.27.6
 
 ### Patch Changes
