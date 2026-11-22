@@ -124,7 +124,9 @@ function ComposeDraft({
               : status === "saving"
                 ? "Saving…"
                 : status === "not-saved"
-                  ? "Draft not saved"
+                  ? mirror.atStorageLimit()
+                    ? "Not saved: storage limit reached"
+                    : "Not saved"
                   : "Text saved"}
           </span>
           {mirror.conflicted(identity) ? (

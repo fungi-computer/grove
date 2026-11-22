@@ -10,7 +10,6 @@ import {
 import type { AppRoot } from "@fungi.computer/agar";
 import { appStorage, AppStorageError } from "@fungi.computer/agar/storage";
 import { DraftMirror } from "./draft-mirror.js";
-import { showConversationToast } from "./conversation-toast.js";
 import { toast, Toaster } from "@fungi.computer/caps/components/toaster";
 
 const Context = createContext<DraftMirror | null | undefined>(undefined);
@@ -46,9 +45,7 @@ export function DraftMirrorProvider({
         ? connection.capabilities.require(appStorage)
         : null,
       (cause) => {
-        const reason =
-          cause instanceof AppStorageError ? cause.code : "unavailable";
-        if (reason === "conflict") {
+        if (cause instanceof AppStorageError && cause.code === "conflict") {
           toast.error(
             "This draft changed in another tab. Your text is still here.",
             {
@@ -65,13 +62,8 @@ export function DraftMirrorProvider({
           );
           return;
         }
-        showConversationToast(connection.ui, {
-          variant: "error",
-          message:
-            reason === "too_large" || reason === "quota_exceeded"
-              ? "Draft text could not be saved: a storage limit was reached. Your text is still here and can be sent."
-              : "Draft text could not be saved. Your text is still here; retry to check storage.",
-        });
+        // Any other failure stays in the composer footer's save status; a
+        // toast there would cover the Send key.
       },
     );
     setOwner({ connection, version, mirror });

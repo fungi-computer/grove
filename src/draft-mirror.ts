@@ -38,6 +38,7 @@ export class DraftMirror {
   private saving = false;
   private retrying = false;
   private failure = false;
+  private limited = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private nextWrite = 0;
   private version = 0;
@@ -69,6 +70,9 @@ export class DraftMirror {
   private setError(cause: unknown) {
     if (this.closed) return;
     this.failure = true;
+    this.limited =
+      cause instanceof AppStorageError &&
+      (cause.code === "too_large" || cause.code === "quota_exceeded");
     this.failed(cause);
     this.publish();
   }
@@ -185,6 +189,11 @@ export class DraftMirror {
     } finally {
       this.retrying = false;
     }
+  }
+
+  /** Whether the last save failed on a storage limit, not a passing fault. */
+  atStorageLimit() {
+    return this.failure && this.limited;
   }
 
   conflicted(owner: ParakeetDraftIdentity) {

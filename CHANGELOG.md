@@ -1,5 +1,19 @@
 # @fungi.computer/grove
 
+## 0.27.5
+
+### Patch Changes
+
+- Changes since 0.27.4:
+
+  - fix(grove): keep a failed draft save from covering send
+
+- Updated dependencies
+  - @fungi.computer/agar@0.28.2
+  - @fungi.computer/parakeet@0.17.7
+  - @fungi.computer/shiitake@0.22.8
+  - @fungi.computer/shiitake-extensions@0.13.4
+
 ## 0.27.4
 
 ### Patch Changes
