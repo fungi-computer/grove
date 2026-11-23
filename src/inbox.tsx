@@ -1,3 +1,4 @@
+import { useAppHeaderRef } from "@fungi.computer/caps/components/app-header";
 import { failureMessage } from "@fungi.computer/agar/errors";
 import { AppError } from "@fungi.computer/agar";
 import type { MemberInboxSession } from "@fungi.computer/agar/inbox";
@@ -426,6 +427,7 @@ function ConnectedInbox({
     selection,
     open: navigateSession,
   } = useInboxNavigation(router, connection?.window.navigation);
+  const headerRef = useAppHeaderRef();
   const queryClient = useQueryClient();
   const websites = useWebsiteInbox(connection, services);
   // One owner decides which conversation is in view and opens it; Grove
@@ -1496,7 +1498,10 @@ function ConnectedInbox({
               ) : null}
               {/* Each per-Agent control remounts for a new Agent; their keys
                   share this parent, so each carries its own prefix. */}
-              <header className="inbox-header flex h-10 flex-none items-center gap-1 border-b border-base-300 pl-3 pr-1">
+              <header
+                className="inbox-header flex h-10 flex-none items-center gap-1 border-b border-base-300 pl-3 pr-1"
+                ref={headerRef}
+              >
                 {facetAgent ? (
                   <AgentAvatarControl
                     key={`avatar:${facetAgent.agentId}`}

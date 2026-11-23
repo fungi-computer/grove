@@ -1,5 +1,18 @@
 # @fungi.computer/grove
 
+## 0.28.2
+
+### Patch Changes
+
+- Changes since 0.28.1:
+
+  - fix(caps): register app headers for toast clearance
+  - fix(caps): measure the app header for toast clearance
+
+- Updated dependencies
+  - @fungi.computer/caps@0.14.1
+  - @fungi.computer/parakeet@0.17.13
+
 ## 0.28.1
 
 ### Patch Changes
