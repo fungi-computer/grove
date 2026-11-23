@@ -1746,6 +1746,7 @@ export function createGroveFixture(
             },
             { agentId, name, outcome: "stopped" },
           ],
+          schedules: [],
           discoveryFailures: [],
           notPermitted: 0,
         });

@@ -1,5 +1,24 @@
 # @fungi.computer/grove
 
+## 0.28.0
+
+### Minor Changes
+
+- Changes since 0.27.9:
+
+  - feat(agar): report the schedules Stop all paused, in parallel under one
+    budget
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.29.0
+  - @fungi.computer/caps@0.14.0
+  - @fungi.computer/parakeet@0.17.11
+  - @fungi.computer/shiitake@0.22.12
+  - @fungi.computer/shiitake-extensions@0.13.8
+
 ## 0.27.9
 
 ### Patch Changes
