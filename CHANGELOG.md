@@ -1,5 +1,23 @@
 # @fungi.computer/grove
 
+## 0.29.0
+
+### Minor Changes
+
+- Changes since 0.28.8:
+
+  - feat(hub): park approvals until the person answers
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/approvals@0.3.0
+  - @fungi.computer/parakeet@0.18.0
+  - @fungi.computer/agar@0.29.3
+  - @fungi.computer/shiitake@0.23.5
+  - @fungi.computer/shiitake-extensions@0.13.15
+
 ## 0.28.8
 
 ### Patch Changes

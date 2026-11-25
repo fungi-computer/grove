@@ -123,6 +123,7 @@ export function InboxList({
   websites,
   selectedWebsite,
   onSelectWebsite,
+  awaitingApproval,
 }: {
   viewport: RefObject<HTMLDivElement>;
   view: InboxView;
@@ -139,6 +140,8 @@ export function InboxList({
   websites: readonly WebsiteInboxRow[];
   selectedWebsite: WebsiteInboxRow | undefined;
   onSelectWebsite: (row: WebsiteInboxRow) => void;
+  /** Conversations with an approval parked for a person, by `sessionKey`. */
+  awaitingApproval: ReadonlySet<string>;
 }) {
   const openKey =
     selectedAgentId !== null && selectedSessionId !== null
@@ -339,6 +342,9 @@ export function InboxList({
                   agent={agent}
                   session={row.session}
                   attention={row.session.unseen}
+                  awaitingApproval={awaitingApproval.has(
+                    sessionKey(row.session.agentId, row.session.sessionId),
+                  )}
                   pending={
                     pendingSelection?.agentId === row.session.agentId &&
                     pendingSelection.sessionId === row.session.sessionId
@@ -375,6 +381,7 @@ function SessionRow({
   agent,
   session,
   attention,
+  awaitingApproval,
   pending,
   selected,
   onSelect,
@@ -384,6 +391,7 @@ function SessionRow({
   agent: AppAgent;
   session: InboxRow;
   attention: boolean;
+  awaitingApproval: boolean;
   pending: boolean;
   selected: boolean;
   onSelect: () => void;
@@ -416,6 +424,12 @@ function SessionRow({
           />
         ) : errored ? (
           <Status size="compact" title={inboxStatusCopy.errored} tone="error" />
+        ) : awaitingApproval ? (
+          <Status
+            size="compact"
+            title="Waiting for your approval"
+            tone="accent"
+          />
         ) : attention ? (
           <Status
             size="compact"
@@ -436,7 +450,7 @@ function SessionRow({
     <div className="relative group">
       <ActionRow
         aria-current={selected ? "page" : undefined}
-        aria-label={`${session.title || "New conversation"} — ${agentLabel(agent)}${attention ? " — Finished since your last visit" : ""}${session.ready ? " — Ready" : inPlay || errored ? ` — ${inboxStatusCopy[session.state]}` : ""}`}
+        aria-label={`${session.title || "New conversation"} — ${agentLabel(agent)}${attention ? " — Finished since your last visit" : ""}${awaitingApproval ? " — Waiting for your approval" : ""}${session.ready ? " — Ready" : inPlay || errored ? ` — ${inboxStatusCopy[session.state]}` : ""}`}
         aria-busy={pending || undefined}
         appearance="plain"
         className={`inbox-row pr-9${selected ? " is-selected bg-base-300" : ""}`}

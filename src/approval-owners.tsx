@@ -10,6 +10,7 @@ import {
   useTimeline,
   type ApprovalSource,
 } from "@fungi.computer/parakeet/headless";
+import { sessionKey } from "./inbox-model.js";
 import {
   useCallback,
   useEffect,
@@ -31,10 +32,11 @@ const POLL_MS = 2000;
 const IDLE_POLL_MS = 5000;
 
 /**
- * The records this Agent's running tool calls are waiting on. A call that
- * needs approval stays open, so no tool result names its record: the owner
- * lists the pending records every few seconds while the conversation is open,
- * faster while any call is running, and once more when the last one ends.
+ * The records this Session has parked for a person. A write that needs
+ * approval ends its call at once, so no tool result names its record: the
+ * owner lists the pending records every few seconds while the conversation is
+ * open, faster while any call is running. A card stays until it is answered,
+ * withdrawn with its Session or expired; it never depends on a live call.
  */
 export function useWaitingRecordIds(
   capabilities: CapabilityDirectory | undefined,
@@ -81,6 +83,55 @@ export function useWaitingRecordIds(
     };
   }, [capabilities, agentId, sessionId, running]);
   return ids;
+}
+
+/**
+ * Which conversations have an approval parked for a person, so a conversation
+ * that is not open still shows it is waiting. Read every few seconds while the
+ * list is on screen; a failed read keeps the last answer.
+ */
+export function useAwaitingApprovalSessions(
+  capabilities: CapabilityDirectory | undefined,
+): ReadonlySet<string> {
+  const [keys, setKeys] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    if (!capabilities?.has(approvals)) {
+      setKeys(new Set());
+      return;
+    }
+    const directory = capabilities;
+    let active = true;
+    async function read() {
+      try {
+        const page = await directory
+          .require(approvals)
+          .list({ state: "pending", limit: 100 });
+        const next = new Set(
+          page.items.flatMap((view) => {
+            const { agentId, sessionId } = view.record.requester;
+            return view.canAnswer && agentId !== null && sessionId !== null
+              ? [sessionKey(agentId, sessionId)]
+              : [];
+          }),
+        );
+        if (active)
+          setKeys((current) =>
+            [...current].sort().join() === [...next].sort().join()
+              ? current
+              : next,
+          );
+      } catch (cause) {
+        console.warn("Grove could not list pending approvals", cause);
+      }
+    }
+    void read();
+    const timer = setInterval(() => void read(), IDLE_POLL_MS);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [capabilities]);
+  return keys;
 }
 
 const answerFailure =
@@ -224,9 +275,9 @@ function reportAnswerFailure(cause: unknown) {
 }
 
 /**
- * Own every approval a running tool call waits on: each is read from its
+ * Own every approval this Session has parked: each is read from its
  * member-bound owner and put in the composer's queue, where the question is
- * asked. A card disappears when its call ends or expires.
+ * asked. A card disappears when it is answered, withdrawn or expired.
  */
 export function ApprovalOwners({
   capabilities,

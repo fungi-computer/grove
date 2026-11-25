@@ -109,6 +109,7 @@ import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
 import { HeadLoading } from "./head-loading.js";
 import { ModelSetup } from "./model-setup.js";
 import { InboxList } from "./inbox-list.js";
+import { useAwaitingApprovalSessions } from "./approval-owners.js";
 import { showConversationToast } from "./conversation-toast.js";
 import { useWebsiteInbox } from "./website-inbox.js";
 import {
@@ -951,6 +952,9 @@ function ConnectedInbox({
   ]);
   const loadingSessions = inbox.status === "loading";
   const inboxFailed = inbox.status === "error";
+  const awaitingApproval = useAwaitingApprovalSessions(
+    connection?.capabilities,
+  );
   const canCreateAgent = connection?.capabilities.has(agentManage) ?? false;
   const canWriteAgent =
     connection?.capabilities.has(agentSessionWrite) ?? false;
@@ -1695,6 +1699,7 @@ function ConnectedInbox({
                         agentFilterId === null || row.agentId === agentFilterId,
                     )}
                     selectedWebsite={websites.selected}
+                    awaitingApproval={awaitingApproval}
                     onSelectWebsite={(row) => {
                       conversationView?.leave(false);
                       setNavOpen(false);
