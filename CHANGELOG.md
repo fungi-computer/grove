@@ -1,5 +1,24 @@
 # @fungi.computer/grove
 
+## 0.29.4
+
+### Patch Changes
+
+- Changes since 0.29.3:
+
+  - fix(shiitake): let a client entry describe its extension's own messages
+  - fix(parakeet): show answers from the question's own outcome and tie a card
+    to its call
+  - fix(parakeet): show answers as a row, name a waiting question, refresh a
+    renamed Agent
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/parakeet@0.18.3
+  - @fungi.computer/shiitake-extensions@0.13.18
+  - @fungi.computer/shiitake@0.23.7
+
 ## 0.29.3
 
 ### Patch Changes

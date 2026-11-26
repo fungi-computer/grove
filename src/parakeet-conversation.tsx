@@ -14,6 +14,8 @@ import {
   type ParakeetToolItem,
 } from "@fungi.computer/parakeet";
 import type { AppRoot, SetupState } from "@fungi.computer/agar";
+import { queryKeys } from "@fungi.computer/agar/query";
+import { useQueryClient } from "@tanstack/react-query";
 import type { RowV1 } from "@fungi.computer/gills";
 import { openAdmissionLink } from "./admission-link.js";
 import { showConversationToast } from "./conversation-toast.js";
@@ -240,6 +242,14 @@ export function ParakeetConversation({
       capabilities !== undefined && claimsPrintsPanel(item),
     [capabilities],
   );
+  // The Agent can rename itself mid-conversation; the header and lists read its
+  // name from the shared directory Query, so refresh that now.
+  const queryClient = useQueryClient();
+  const onAgentRenamed = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.of(connection, "agents"),
+    });
+  }, [connection, queryClient]);
   const onToast = useCallback(
     (toast: ParakeetToast) => {
       showConversationToast(ui, toast);
@@ -284,6 +294,7 @@ export function ParakeetConversation({
             formatAssistantText={gameShareDisplayText}
             renderToolActions={renderToolActions}
             claimsToolMedia={claimsToolMedia}
+            onAgentRenamed={onAgentRenamed}
           />
         </ApprovalOwners>
       </ComposeDraft>
