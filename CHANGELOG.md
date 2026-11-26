@@ -1,5 +1,12 @@
 # @fungi.computer/grove
 
+## 0.29.16
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/shiitake-extensions@0.15.5
+
 ## 0.29.15
 
 ### Patch Changes

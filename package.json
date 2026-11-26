@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/grove",
-  "version": "0.29.15",
+  "version": "0.29.16",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit",
     "lint": "eslint src workbench test backend .ladle --max-warnings=0"
@@ -27,7 +27,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "zod": "4.4.3",
-    "@fungi.computer/shiitake-extensions": "0.15.4",
+    "@fungi.computer/shiitake-extensions": "0.15.5",
     "@fungi.computer/gills": "0.4.0"
   },
   "devDependencies": {
