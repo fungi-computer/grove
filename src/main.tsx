@@ -1,7 +1,7 @@
 import { mountApp } from "@fungi.computer/agar/react";
 import { createQueryClient } from "@fungi.computer/agar/query";
 import { createElement } from "react";
-import { GroveApp } from "./chat-gill.js";
+import { GroveApp } from "./grove-app.js";
 import { DraftMirrorProvider } from "./draft-mirror-provider.js";
 import "@fungi.computer/stipe/fonts-sans.css";
 import "./grove.css";

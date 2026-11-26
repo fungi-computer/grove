@@ -1,5 +1,24 @@
 # @fungi.computer/grove
 
+## 0.29.13
+
+### Patch Changes
+
+- Changes since 0.29.12:
+
+  - fix(grove): repair the tourtois workbench import and the empty-dist message
+  - perf(prints): cut the first view under its budget
+  - fix(grove): keep the tile's loading head while its chunk loads
+  - perf(grove): cut the first view by about 95 KB gzip
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/parakeet@0.19.6
+  - @fungi.computer/shiitake-extensions@0.15.2
+  - @fungi.computer/shiitake@0.24.2
+  - @fungi.computer/knapsack@0.4.38
+
 ## 0.29.12
 
 ### Patch Changes

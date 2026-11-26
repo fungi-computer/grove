@@ -41,7 +41,6 @@ import { HeadLoading } from "./head-loading.js";
 import { showConversationToast } from "./conversation-toast.js";
 import {
   Conversation,
-  InboxApp,
   defaultServices,
   groveAgentAccess,
   sessionCreateRequests,
@@ -122,32 +121,6 @@ const emptySnapshot: ConversationViewSnapshot = {
   error: null,
 };
 const subscribeNothing = (): (() => void) => () => undefined;
-
-/**
- * Which Grove this frame is. The host tells a surface tile its Gill through
- * the open params; any other frame is the full Grove window.
- */
-export function GroveApp(props: ChatGillProps): React.JSX.Element {
-  const context = useAppContext(props.connection);
-  const request = context?.openRequest ?? null;
-  const requested =
-    request?.kind === "navigate"
-      ? request.params.find((param) => param.key === "gill")?.value
-      : undefined;
-  // The request is only present on the launch; the frame keeps its kind.
-  const [gill, setGill] = useState<string | null>(null);
-  useEffect(() => {
-    if (requested !== undefined) setGill(requested);
-  }, [requested]);
-  return (gill ?? requested) === "chat" ? (
-    <ChatGillApp {...props} />
-  ) : (
-    <InboxApp
-      connection={props.connection}
-      {...(props.services === undefined ? {} : { services: props.services })}
-    />
-  );
-}
 
 export function ChatGillApp(props: ChatGillProps): React.JSX.Element {
   return (
