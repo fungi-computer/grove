@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/grove",
-  "version": "0.29.4",
+  "version": "0.29.5",
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit",
@@ -13,8 +13,8 @@
     "@fungi.computer/caps": "0.14.2",
     "@fungi.computer/knapsack": "0.4.35",
     "@fungi.computer/maosaico": "0.1.2",
-    "@fungi.computer/parakeet": "0.18.3",
-    "@fungi.computer/shiitake": "0.23.7",
+    "@fungi.computer/parakeet": "0.18.4",
+    "@fungi.computer/shiitake": "0.23.8",
     "@fungi.computer/sigils": "0.3.2",
     "@fungi.computer/sprite": "0.2.3",
     "@fungi.computer/sprite-zdog": "0.3.3",
@@ -28,14 +28,14 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "zod": "4.4.3",
-    "@fungi.computer/shiitake-extensions": "0.13.18",
+    "@fungi.computer/shiitake-extensions": "0.13.19",
     "@fungi.computer/gills": "0.4.0"
   },
   "devDependencies": {
     "@fungi.computer/capnweb": "0.12.0-fungi.0",
     "@fungi.computer/watchdog": "0.1.7",
     "@cloudflare/workers-types": "5.20260828.1",
-    "@fungi.computer/parakeet-testing": "0.2.75",
+    "@fungi.computer/parakeet-testing": "0.2.76",
     "@ladle/react": "5.1.1",
     "@tailwindcss/vite": "4.2.1",
     "@types/react": "18.3.3",
