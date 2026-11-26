@@ -60,8 +60,9 @@ export type PersonaChip = Readonly<{ label: string; prompt: string }>;
 export const personaChips: readonly PersonaChip[] = [
   {
     label: "Set me up",
-    prompt:
-      "I'm new here. Set yourself up for me: ask me at most three quick questions about what I want to use you for, show me a short plan, and wait for my OK before you change anything. Save what you learn about me in your AGENTS.md.",
+    // Short on purpose: it is the first bubble and the Inbox title. The starter
+    // Agent's setup-fungi skill holds the interview, plan and approval script.
+    prompt: "Set me up",
   },
   {
     label: "Help me set up my Oyster",

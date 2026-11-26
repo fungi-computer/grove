@@ -1,5 +1,17 @@
 # @fungi.computer/grove
 
+## 0.29.1
+
+### Patch Changes
+
+- Changes since 0.29.0:
+
+  - fix(parakeet): keep a refusal visible without a toast host and wait honestly
+  - fix(parakeet): keep the composer usable and never preselect an answer
+
+- Updated dependencies
+  - @fungi.computer/parakeet@0.18.1
+
 ## 0.29.0
 
 ### Minor Changes

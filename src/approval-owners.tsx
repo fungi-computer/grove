@@ -221,7 +221,7 @@ function ApprovalOwner({
         !family || module === undefined || access === undefined
           ? undefined
           : {
-              label: `Always allow ${appName} to ${access === "write" ? "change data" : "act outside Fungi"}`,
+              label: `Always allow ${appName} to ${access === "write" ? "make changes" : "act outside Fungi"}`,
               enable: async () => {
                 const result = await capabilities
                   .require(approvals)

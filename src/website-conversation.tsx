@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { messageAuthor } from "@fungi.computer/agar/agents";
 import { Button } from "@fungi.computer/caps/components/button";
 import {
@@ -11,6 +11,7 @@ import {
   DialogClose,
 } from "@fungi.computer/caps/components/dialog";
 import { Parakeet } from "@fungi.computer/parakeet";
+import type { ParakeetToast } from "@fungi.computer/parakeet/headless";
 import type { AppRoot } from "@fungi.computer/agar";
 import { showConversationToast } from "./conversation-toast.js";
 import type { useWebsiteInbox } from "./website-inbox.js";
@@ -41,6 +42,12 @@ export function WebsiteConversation({
         "This conversation changed or website access was removed. Refresh and try again.",
     });
   }, [actionError, ui]);
+  const onToast = useCallback(
+    (toast: ParakeetToast) => {
+      showConversationToast(ui, toast);
+    },
+    [ui],
+  );
   if (selected === undefined) return null;
   const conversation = selected.conversation;
   return (
@@ -143,6 +150,7 @@ export function WebsiteConversation({
             disambiguateAuthors
             key={`${selected.bindingId}:${conversation.sessionId}`}
             session={session}
+            onToast={onToast}
             markdownPolicy="visitor"
             composerActionVariant="outline"
           />
