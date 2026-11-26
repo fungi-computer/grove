@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/grove",
-  "version": "0.29.11",
+  "version": "0.29.12",
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit",

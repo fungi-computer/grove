@@ -23,6 +23,7 @@ import {
   agentInstructions,
   agentManage,
   agentList,
+  agentRename,
   agentSessionRead,
   agentSessionWrite,
   agentStop,
@@ -1711,6 +1712,19 @@ export function createGroveFixture(
         };
         createdAgents.push(agent);
         return Promise.resolve(agent);
+      },
+    });
+  if (scenario !== "no-agent-access")
+    capabilities.provide(agentRename, {
+      rename: ({ agentId, name }) => {
+        for (const list of [agents, createdAgents]) {
+          const index = list.findIndex((agent) => agent.agentId === agentId);
+          if (index === -1) continue;
+          const updated = { ...list[index], name };
+          list[index] = updated;
+          return Promise.resolve(updated);
+        }
+        return Promise.reject(new Error("No such Agent"));
       },
     });
   if (scenario !== "no-agent-access")

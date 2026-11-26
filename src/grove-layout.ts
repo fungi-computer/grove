@@ -10,6 +10,8 @@ export type GroveLayout = Readonly<{
   agentRailOpen: boolean;
   listRailOpen: boolean;
   listWidth: number;
+  /** The Agent last selected in the rail; absent while "All agents" is. */
+  agentId?: string;
 }>;
 
 export const defaultGroveLayout: GroveLayout = {
@@ -28,6 +30,21 @@ const decodeLayout = Schema.decodeUnknownOption(
     listWidth: Schema.Number.pipe(Schema.check(Schema.isFinite())),
   }),
 );
+// Decoded on its own so a bad Agent choice never resets the rail settings.
+const decodeAgentId = Schema.decodeUnknownOption(
+  Schema.Struct({ agentId: Schema.String }),
+);
+
+/** The layout with the Agent choice set, or with the key absent for All agents. */
+export function chooseAgent(
+  layout: GroveLayout,
+  agentId: string | null,
+): GroveLayout {
+  const { agentRailOpen, listRailOpen, listWidth } = layout;
+  const rails = { agentRailOpen, listRailOpen, listWidth };
+  // Storage refuses an undefined value, so All agents omits the key.
+  return agentId === null ? rails : { ...rails, agentId };
+}
 
 export function clampListWidth(width: number): number {
   return Math.round(
@@ -46,11 +63,19 @@ export async function readGroveLayout(
   storage: LayoutStorage,
 ): Promise<{ layout: GroveLayout; revision: number | null }> {
   const saved = await storage.read(layoutStorageKey);
-  const layout = decodeLayout(saved.member?.value);
+  const decoded = decodeLayout(saved.member?.value);
+  const agent = decodeAgentId(saved.member?.value);
+  let layout: GroveLayout = defaultGroveLayout;
+  if (Option.isSome(decoded)) {
+    layout = {
+      ...decoded.value,
+      listWidth: clampListWidth(decoded.value.listWidth),
+    };
+    if (Option.isSome(agent))
+      layout = { ...layout, agentId: agent.value.agentId };
+  }
   return {
-    layout: Option.isSome(layout)
-      ? { ...layout.value, listWidth: clampListWidth(layout.value.listWidth) }
-      : defaultGroveLayout,
+    layout,
     revision: saved.member?.revision ?? null,
   };
 }
@@ -79,8 +104,10 @@ export function useGroveLayout(
 ): readonly [
   GroveLayout,
   (update: (layout: GroveLayout) => GroveLayout) => void,
+  boolean,
 ] {
   const [layout, setLayout] = useState(defaultGroveLayout);
+  const [ready, setReady] = useState(storage === undefined);
   const revision = useRef<number | null>(null);
   const loaded = useRef(false);
   const touched = useRef(false);
@@ -94,10 +121,12 @@ export function useGroveLayout(
         loaded.current = true;
         // A change made before the read returned is newer than the saved one.
         if (!touched.current) setLayout(saved.layout);
+        setReady(true);
       },
       (cause: unknown) => {
         console.warn("Grove could not read its saved rail layout", cause);
         loaded.current = true;
+        setReady(true);
       },
     );
     return () => {
@@ -119,5 +148,5 @@ export function useGroveLayout(
     touched.current = true;
     setLayout(change);
   }, []);
-  return [layout, update] as const;
+  return [layout, update, ready] as const;
 }

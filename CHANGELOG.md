@@ -1,5 +1,15 @@
 # @fungi.computer/grove
 
+## 0.29.12
+
+### Patch Changes
+
+- Changes since 0.29.11:
+
+  - fix(grove): build the saved layout without an undefined Agent key
+  - fix(grove): keep layout saves valid and prove rename in the real window
+  - fix(grove): rename an Agent in place and reopen on the last Agent
+
 ## 0.29.11
 
 ### Patch Changes

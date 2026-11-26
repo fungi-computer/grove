@@ -99,6 +99,7 @@ import { usePointerDrag } from "@fungi.computer/maosaico";
 import {
   clampListWidth,
   listWidthBounds,
+  chooseAgent,
   useGroveLayout,
 } from "./grove-layout.js";
 import { IconButton } from "@fungi.computer/caps/components/icon-button";
@@ -517,7 +518,7 @@ function ConnectedInbox({
         : undefined,
     [connection],
   );
-  const [layout, setLayout] = useGroveLayout(memberStorage);
+  const [layout, setLayout, layoutReady] = useGroveLayout(memberStorage);
   const { agentRailOpen, listRailOpen, listWidth } = layout;
   const setAgentRailOpen = (open: (current: boolean) => boolean) => {
     setLayout((current) => ({
@@ -1102,10 +1103,47 @@ function ConnectedInbox({
     : undefined;
   const facetAgent =
     agentFilterId === null ? undefined : agentById.get(agentFilterId);
+  // After a reload the window reopens on the Agent last selected, or the only
+  // Agent; later selections are remembered. A route that names an Agent wins.
+  const agentRestored = useRef(false);
+  const savedAgentId = layout.agentId;
+  useEffect(() => {
+    if (!layoutReady || directory.data === undefined) return;
+    if (!agentRestored.current) {
+      agentRestored.current = true;
+      if (agentFilterId !== null || selection !== undefined) return;
+      const target =
+        directory.data.find((agent) => agent.agentId === savedAgentId) ??
+        (directory.data.length === 1 ? directory.data[0] : undefined);
+      if (target) setAgentFilterId(target.agentId);
+      return;
+    }
+    if ((agentFilterId ?? undefined) !== savedAgentId)
+      setLayout((current) => chooseAgent(current, agentFilterId));
+  }, [
+    layoutReady,
+    directory.data,
+    agentFilterId,
+    selection,
+    savedAgentId,
+    setAgentFilterId,
+    setLayout,
+  ]);
   const canRenameAgent = connection?.capabilities.has(agentRename) ?? false;
   // The starter Agent is named by the host; the person renames it from here.
   const soleAgent = agents.length === 1 ? agents[0] : undefined;
   const renameTarget = facetAgent ?? soleAgent;
+  // The open rename form takes the header row; the other keys wait.
+  const [renaming, setRenaming] = useState(false);
+  const headerTitle = (
+    <CardTitle level={2} className="m-0 min-w-0 flex-1 truncate text-sm">
+      {websitesOnly && websites.canRead
+        ? "Websites"
+        : facetAgent
+          ? agentLabel(facetAgent)
+          : "All agents"}
+    </CardTitle>
+  );
   const canSetAgentAvatar = connection?.capabilities.has(agentAvatar) ?? false;
   const toolPolicy = useAgentToolPolicy(
     connection,
@@ -1517,25 +1555,19 @@ function ConnectedInbox({
                       : {})}
                   />
                 ) : null}
-                <CardTitle
-                  level={2}
-                  className="m-0 min-w-0 flex-1 truncate text-sm"
-                >
-                  {websitesOnly && websites.canRead
-                    ? "Websites"
-                    : facetAgent
-                      ? agentLabel(facetAgent)
-                      : "All agents"}
-                </CardTitle>
                 {renameTarget && canRenameAgent ? (
                   <RenameAgentControl
                     key={`rename:${renameTarget.agentId}`}
                     agentId={renameTarget.agentId}
                     name={renameTarget.name}
                     rename={renameAgent}
+                    title={headerTitle}
+                    onEditingChange={setRenaming}
                   />
-                ) : null}
-                {facetAgent && instructions.canUse ? (
+                ) : (
+                  headerTitle
+                )}
+                {!renaming && facetAgent && instructions.canUse ? (
                   <AgentInstructionsControl
                     key={`instructions:${facetAgent.agentId}`}
                     agentId={facetAgent.agentId}
@@ -1547,7 +1579,7 @@ function ConnectedInbox({
                     notify={notifyInstructions}
                   />
                 ) : null}
-                {facetAgent && extensions.canUse ? (
+                {!renaming && facetAgent && extensions.canUse ? (
                   <AgentExtensionsControl
                     key={`extensions:${facetAgent.agentId}`}
                     agentId={facetAgent.agentId}
@@ -1557,7 +1589,7 @@ function ConnectedInbox({
                     change={changeExtension}
                   />
                 ) : null}
-                {connection && (canStart || canCreateAgent) ? (
+                {!renaming && connection && (canStart || canCreateAgent) ? (
                   <IconButton
                     aria-label="New conversation"
                     aria-haspopup="dialog"
