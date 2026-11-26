@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/grove",
-  "version": "0.29.16",
+  "version": "0.30.0",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p backend/tsconfig.json --noEmit",
     "lint": "eslint src workbench test backend .ladle --max-warnings=0"
@@ -12,7 +12,7 @@
     "@fungi.computer/caps": "0.14.4",
     "@fungi.computer/knapsack": "0.4.39",
     "@fungi.computer/maosaico": "0.1.2",
-    "@fungi.computer/parakeet": "0.19.8",
+    "@fungi.computer/parakeet": "0.19.9",
     "@fungi.computer/shiitake": "0.24.4",
     "@fungi.computer/sigils": "0.3.2",
     "@fungi.computer/sprite": "0.2.3",
@@ -27,7 +27,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "zod": "4.4.3",
-    "@fungi.computer/shiitake-extensions": "0.15.5",
+    "@fungi.computer/shiitake-extensions": "0.15.6",
     "@fungi.computer/gills": "0.4.0"
   },
   "devDependencies": {

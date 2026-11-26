@@ -1,5 +1,28 @@
 # @fungi.computer/grove
 
+## 0.30.0
+
+### Minor Changes
+
+- Changes since 0.29.16:
+
+  - fix(grove): report an open failure once, and only for a start that was
+    opening
+  - fix(grove): hand off a started conversation's draft in order, and return it
+    on failure
+  - fix(grove): keep the starting pane until the new conversation is open, then
+    hand over the draft
+  - feat(grove): show a new conversation at once, with its draft, while its
+    Session is made
+  - fix(grove): lock the open conversation while a new one is created
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/parakeet@0.19.9
+  - @fungi.computer/shiitake-extensions@0.15.6
+
 ## 0.29.16
 
 ### Patch Changes

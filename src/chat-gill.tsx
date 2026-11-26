@@ -24,10 +24,12 @@ import {
   initialViewState,
   shownConversation,
   openingTarget,
+  paneLocked,
   type ConversationViewSnapshot,
 } from "@fungi.computer/parakeet/conversation-view";
 import { createWhistle } from "@fungi.computer/whistle";
 import { useQueryClient } from "@tanstack/react-query";
+import { correlationKey } from "@fungi.computer/cairn";
 import { Ellipsis } from "lucide-react";
 import {
   useCallback,
@@ -38,6 +40,14 @@ import {
   useSyncExternalStore,
 } from "react";
 import { HeadLoading } from "./head-loading.js";
+import {
+  StartingConversation,
+  draftFor,
+  handOffCreated,
+  useStartHandoff,
+  useStartingDraft,
+  type TargetedDraft,
+} from "./starting-conversation.js";
 import { showConversationToast } from "./conversation-toast.js";
 import {
   Conversation,
@@ -312,6 +322,39 @@ function ChatGill({
   const open = shownConversation(snapshot.state);
   const pending = openingTarget(snapshot.state);
   const creating = snapshot.state.creating !== null;
+  const locked = paneLocked(snapshot.state);
+  const startDraft = useStartingDraft();
+  const { read: readStartDraft, clear: clearStartDraft } = startDraft;
+  const [composeDraft, setComposeDraft] = useState<TargetedDraft | null>(null);
+  const returnStartDraft = useCallback(
+    (
+      text: string,
+      returnedTo: { agentId: string; sessionId: string } | null,
+    ) => {
+      // The new Session failed to open, and the open error already says why:
+      // the text goes to the composer the person lands on.
+      if (returnedTo)
+        setComposeDraft({
+          requestId: correlationKey(),
+          text,
+          target: returnedTo,
+        });
+    },
+    [],
+  );
+  // A person's new conversation shows at once, empty, and stays until the
+  // created one is open; what was typed moves into its composer then.
+  const {
+    showStarting: starting,
+    begin: beginHandoff,
+    handedOver,
+    settle: settleHandoff,
+  } = useStartHandoff({
+    state: snapshot.state,
+    error: snapshot.error,
+    draft: startDraft,
+    onFailed: returnStartDraft,
+  });
   const [startFailure, setStartFailure] = useState(false);
 
   const latest = useMemo(() => {
@@ -340,6 +383,7 @@ function ChatGill({
       if (!connection || !view || agent === undefined) return;
       const request = view.create(cause);
       if (!request.accepted || request.ticket === null) return;
+      const ticket = request.ticket;
       setStartFailure(false);
       try {
         const generate = () => sessionCreateRequests.request.generate();
@@ -358,11 +402,32 @@ function ChatGill({
           services,
           (client) => client.createSession(requestId),
         );
-        view.created(request.ticket, { agentId: agent.agentId, sessionId });
+        const placed = handOffCreated(
+          beginHandoff,
+          { agentId: agent.agentId, sessionId },
+          () =>
+            view.created(ticket, {
+              agentId: agent.agentId,
+              sessionId,
+            }),
+        );
+        if (!placed.accepted) beginHandoff(null);
         // Creation can beat the visibility feed; reload the owner snapshot.
         inbox.refresh();
       } catch (cause: unknown) {
         view.createFailed(request.ticket);
+        // The person returns to the conversation they were in, with what they
+        // typed kept in its composer.
+        const kept = readStartDraft();
+        const returnedTo = shownConversation(view.snapshot().state);
+        if (returnedTo && kept.trim() !== "") {
+          setComposeDraft({
+            requestId: correlationKey(),
+            text: kept,
+            target: returnedTo,
+          });
+          clearStartDraft();
+        }
         console.error(
           "Grove chat widget could not start a conversation",
           cause,
@@ -377,7 +442,16 @@ function ChatGill({
         });
       }
     },
-    [agent, connection, inbox.refresh, services, view],
+    [
+      agent,
+      beginHandoff,
+      clearStartDraft,
+      connection,
+      inbox.refresh,
+      readStartDraft,
+      services,
+      view,
+    ],
   );
 
   // Show the most recent conversation, or make the first one; once per Agent.
@@ -580,7 +654,9 @@ function ChatGill({
           />
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              disabled={agent === undefined || !canWrite || creating}
+              disabled={
+                agent === undefined || !canWrite || creating || starting
+              }
               onSelect={() => {
                 void startConversation("person");
               }}
@@ -596,11 +672,19 @@ function ChatGill({
       >
         {connectModel ? (
           <ChatGillConnectModel agent={headAgent} connection={connection} />
+        ) : starting ? (
+          <StartingConversation
+            agent={headAgent}
+            draft={startDraft.draft}
+            onDraft={startDraft.change}
+          />
         ) : open ? (
           <Conversation
             key={`${open.agentId}:${open.sessionId}`}
             commands={commands}
-            composeDraft={null}
+            composeDraft={
+              draftFor(composeDraft, open) ?? draftFor(handedOver, open)
+            }
             connection={connection}
             empty={<ChatGillEmpty agent={headAgent} />}
             label="Chat"
@@ -611,9 +695,12 @@ function ChatGill({
             onOpen={(target) => {
               openInGrove(target.params);
             }}
-            onPrefilled={() => undefined}
+            onPrefilled={() => {
+              setComposeDraft(null);
+              settleHandoff();
+            }}
             open={open}
-            opening={pending !== null}
+            opening={locked}
             renderConversation={services.renderConversation}
           />
         ) : (

@@ -380,6 +380,7 @@ export const FailedStart = () => <Workbench scenario="start-failed" />;
 export const FailedStartOpen = () => (
   <Conversation scenario="start-failed-open" />
 );
+export const StartSlowOpen = () => <Conversation scenario="start-slow-open" />;
 export const SellerClosed = () => <Workbench scenario="seller-closed" />;
 export const SafetyNotice = () => <Workbench scenario="safety-notice" />;
 export const NoAgents = () => <Workbench scenario="no-agents" />;

@@ -108,6 +108,14 @@ import { ScrollArea } from "@fungi.computer/caps/components/scroll-area";
 import { EmptyState } from "@fungi.computer/caps/blocks/empty-state";
 import { LoadingState } from "@fungi.computer/caps/blocks/loading-state";
 import { HeadLoading } from "./head-loading.js";
+import {
+  StartingConversation,
+  draftFor,
+  handOffCreated,
+  useStartHandoff,
+  useStartingDraft,
+  type TargetedDraft,
+} from "./starting-conversation.js";
 import { ModelSetup } from "./model-setup.js";
 import { InboxList } from "./inbox-list.js";
 import { useAwaitingApprovalSessions } from "./approval-awaiting.js";
@@ -117,6 +125,7 @@ import {
   createConversationView,
   initialViewState,
   openingTarget,
+  paneLocked,
   shownConversation,
   type ConversationViewSnapshot,
 } from "@fungi.computer/parakeet/conversation-view";
@@ -503,6 +512,44 @@ function ConnectedInbox({
     ? startMutation.variables.agentId
     : null;
   const pendingSelection = openingTarget(viewSnapshot.state);
+  const [composeDraft, setComposeDraft] = useState<TargetedDraft | null>(null);
+  // What is typed into a conversation whose Session is still being created.
+  const startDraft = useStartingDraft();
+  const { read: readStartDraft, clear: clearStartDraft } = startDraft;
+  const returnStartDraft = useCallback(
+    (
+      text: string,
+      returnedTo: { agentId: string; sessionId: string } | null,
+    ) => {
+      // The new Session failed to open, and the open error already says why:
+      // the text goes to the composer the person lands on.
+      if (returnedTo)
+        setComposeDraft({
+          requestId: correlationKey(),
+          text,
+          target: returnedTo,
+        });
+    },
+    [],
+  );
+  // The shown pane takes no input while another conversation opens or a
+  // person's new Session is being created.
+  const locked = paneLocked(viewSnapshot.state);
+  // A person's new conversation shows at once, empty, and stays until the
+  // created one is open; what was typed moves into its composer then.
+  const {
+    showStarting: starting,
+    begin: beginHandoff,
+    handedOver,
+    settle: settleHandoff,
+  } = useStartHandoff({
+    state: viewSnapshot.state,
+    error: viewSnapshot.error,
+    draft: startDraft,
+    onFailed: returnStartDraft,
+  });
+  const startingRef = useRef(false);
+  startingRef.current = starting;
   // While another conversation opens, the one being left stays the open one
   // for the list and header; the pane itself waits for the new one.
   const openConversation = shownConversation(viewSnapshot.state);
@@ -562,10 +609,6 @@ function ConnectedInbox({
   const [conversationError, setConversationError] = useState<string | null>(
     null,
   );
-  const [composeDraft, setComposeDraft] = useState<Readonly<{
-    requestId: string;
-    text: string;
-  }> | null>(null);
   const appContext = useAppContext(connection);
   const openRequest = appContext?.openRequest ?? null;
   const modelsMissing = appContext?.setup?.models === "missing";
@@ -714,11 +757,17 @@ function ConnectedInbox({
     !!openConversation || websites.selected !== undefined;
   const startConversation = useCallback(
     async (agentId: string, cause: "person" | "auto" = "person") => {
-      if (!connection || !conversationView || startingAgentId !== null)
+      if (
+        !connection ||
+        !conversationView ||
+        startingAgentId !== null ||
+        startingRef.current
+      )
         return "Conversation creation is unavailable.";
       // Grove's own first conversation never competes with a person's choice.
       const request = conversationView.create(cause);
       if (!request.accepted || request.ticket === null) return undefined;
+      const ticket = request.ticket;
       setConversationError(null);
       try {
         // Grove's own first conversation shares one request with the chat
@@ -736,13 +785,20 @@ function ConnectedInbox({
                     : sessionCreateRequests.request.generate(),
               };
         sessionCreateIntent.current = intent;
+        // The new conversation is in view now; the dialog has done its part.
+        setCreation(null);
+        setNavOpen(false);
         const sessionId = await startMutation.mutateAsync(intent);
         // The loaded member inbox owns the new row and resumes its feed.
         // A Session another choice has since superseded is simply not shown.
-        const placed = conversationView.created(request.ticket, {
-          agentId,
-          sessionId,
-        });
+        // The starting pane stays up until this Session is open, and what was
+        // typed moves into its composer then.
+        const placed = handOffCreated(
+          beginHandoff,
+          { agentId, sessionId },
+          () => conversationView.created(ticket, { agentId, sessionId }),
+        );
+        if (!placed.accepted) beginHandoff(null);
         if (placed.accepted) {
           if (startMutation.isError) startMutation.reset();
           websites.clear();
@@ -759,6 +815,18 @@ function ConnectedInbox({
       } catch (cause: unknown) {
         conversationView.createFailed(request.ticket);
         console.error("Grove conversation creation failed", cause);
+        // The person returns to the conversation they were in, with what they
+        // typed kept in its composer; the empty state keeps it for Retry.
+        const kept = readStartDraft();
+        const returnedTo = shownConversation(conversationView.snapshot().state);
+        if (returnedTo && kept.trim() !== "") {
+          setComposeDraft({
+            requestId: correlationKey(),
+            text: kept,
+            target: returnedTo,
+          });
+          clearStartDraft();
+        }
         // With a conversation open the failure is a toast; the empty state
         // keeps its Retry card.
         if (conversationShown)
@@ -783,6 +851,9 @@ function ConnectedInbox({
       startMutation.isError,
       startMutation.mutateAsync,
       startMutation.reset,
+      beginHandoff,
+      clearStartDraft,
+      readStartDraft,
       websites.clear,
       inbox.refresh,
     ],
@@ -824,7 +895,7 @@ function ConnectedInbox({
     {
       setDraft: (text) => {
         if (
-          pendingSelection !== null ||
+          locked ||
           !openConversation ||
           !connection?.capabilities.has(agentSessionWrite) ||
           !agents.some(
@@ -1320,6 +1391,7 @@ function ConnectedInbox({
         !connection ||
         creatingAgent ||
         startingAgentId !== null ||
+        startingRef.current ||
         (kind === "agent" && !canCreateAgent)
       )
         return;
@@ -1402,6 +1474,7 @@ function ConnectedInbox({
   }, [starterRefused, connection]);
 
   const failedStart = startMutation.isError ? startMutation.variables : null;
+  const startingAgent = startAgent ?? openAgent;
   const startFailureNotice =
     failedStart && creation !== "session" && !conversationShown ? (
       <Alert
@@ -1593,6 +1666,7 @@ function ConnectedInbox({
                   <IconButton
                     aria-label="New conversation"
                     aria-haspopup="dialog"
+                    disabled={starting}
                     icon={<SquarePen />}
                     iconSize="sm"
                     size="sm"
@@ -1714,7 +1788,7 @@ function ConnectedInbox({
                     showEmptyState={!modelsMissing}
                     pendingSelection={pendingSelection}
                     selectedAgentId={selectedAgentId}
-                    selectedSessionId={selectedSessionId}
+                    selectedSessionId={starting ? null : selectedSessionId}
                     onSelect={openListRow}
                     onDelete={
                       canWriteAgent
@@ -1777,6 +1851,13 @@ function ConnectedInbox({
           <Suspense fallback={null}>
             <WebsiteConversation inbox={websites} ui={connection?.ui ?? null} />
           </Suspense>
+        ) : starting ? (
+          <StartingConversation
+            agent={startingAgent}
+            draft={startDraft.draft}
+            onDraft={startDraft.change}
+            autoFocus={desktop}
+          />
         ) : pendingSelection !== null && openConversation === null ? (
           <LoadingState
             className="m-auto"
@@ -1789,15 +1870,19 @@ function ConnectedInbox({
             connection={connection}
             commands={groveRuntime}
             renderConversation={services.renderConversation}
-            composeDraft={composeDraft}
+            composeDraft={
+              draftFor(composeDraft, openConversation) ??
+              draftFor(handedOver, openConversation)
+            }
             onPrefilled={() => {
               setComposeDraft(null);
+              settleHandoff();
             }}
             onForked={onForked}
             onOpen={openBeside}
             models={appContext?.setup?.models}
             autoFocus={desktop && creation === null}
-            opening={pendingSelection !== null}
+            opening={locked}
             agentName={openAgent?.name}
           />
         ) : !connection || directoryLoading ? (

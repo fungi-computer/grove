@@ -154,6 +154,7 @@ export type GroveScenario =
   | "thousand"
   | "start-failed"
   | "start-failed-open"
+  | "start-slow-open"
   | "empty"
   | "starter"
   | "no-agents"
@@ -1919,6 +1920,14 @@ export function createGroveFixture(
           return Promise.resolve(true);
         },
         createSession: () => {
+          // A request that answers late: the new conversation is in view, empty,
+          // while its Session is made.
+          if (scenario === "start-slow-open")
+            return new Promise((resolve) => {
+              setTimeout(() => {
+                resolve(`${agentId}-new`);
+              }, 2500);
+            });
           if (
             (scenario === "start-failed" || scenario === "start-failed-open") &&
             !failedStart
@@ -2010,6 +2019,15 @@ export function createGroveFixture(
           // The real frames a Hub Agent session sent while its command ran.
           if (scenario === "live-tool-output")
             return replayLiveToolOutput(session);
+          // The new conversation opens slowly, after its Session was made.
+          if (scenario === "start-slow-open" && sessionId.endsWith("-new"))
+            return {
+              ...session,
+              read: async () => {
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+                return session.read();
+              },
+            };
           if (scenario === "conversation-loading")
             return {
               ...session,
