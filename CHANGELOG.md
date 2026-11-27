@@ -1,5 +1,28 @@
 # @fungi.computer/grove
 
+## 0.31.0
+
+### Minor Changes
+
+- Changes since 0.30.2:
+
+  - fix(setup): read a queued Home Computer's state instead of starting it
+    again, and say the queue once
+  - feat(setup): show a queued first Computer as a place in line, never a
+    failure
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/agar@0.31.0
+  - @fungi.computer/parakeet@0.19.12
+  - @fungi.computer/whistle@0.3.1
+  - @fungi.computer/shiitake@0.24.7
+  - @fungi.computer/knapsack@0.4.42
+  - @fungi.computer/shiitake-extensions@0.15.9
+
 ## 0.30.2
 
 ### Patch Changes

@@ -107,6 +107,7 @@ function Workbench({
   keyConnects,
   openBilling,
   savedLayout,
+  computerQueue,
 }: {
   scenario?: GroveScenario;
   narrow?: boolean;
@@ -121,6 +122,8 @@ function Workbench({
   openBilling?: () => Promise<void>;
   /** The member's rail layout the host App storage already holds. */
   savedLayout?: GroveLayout;
+  /** The first Computer waits behind this many starts, itself included. */
+  computerQueue?: number;
 }) {
   const [fixture] = useState(() =>
     createGroveFixture(
@@ -130,6 +133,7 @@ function Workbench({
       models,
       openBilling,
       keyConnects,
+      computerQueue,
     ),
   );
   const { status, bar } = useWorkbenchStatusBar();
@@ -260,6 +264,28 @@ export const TileNoModel = () => (
 /** Grove's chat as a dashboard tile (a surface Gill): no conversations yet. */
 export const ChatGillEmpty = () => (
   <Workbench scenario="starter" models="ready" chat={{ size: "L" }} />
+);
+/**
+ * The setup chat of a new person whose first Computer is queued behind a full
+ * host: a place in line in one short row, not a failure.
+ */
+export const ChatGillSetupQueued = () => (
+  <Workbench
+    scenario="starter"
+    models="ready"
+    computerQueue={3}
+    chat={{ size: "L" }}
+  />
+);
+/** The same setup chat on a phone. */
+export const ChatGillSetupQueuedPhone = () => (
+  <Workbench
+    narrow
+    scenario="starter"
+    models="ready"
+    computerQueue={1}
+    chat={{ size: "L" }}
+  />
 );
 /** The tile when its first conversation cannot start: the toast names why. */
 export const ChatGillStartFailed = () => (

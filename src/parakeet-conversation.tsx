@@ -13,7 +13,12 @@ import {
   type ParakeetSession,
   type ParakeetToolItem,
 } from "@fungi.computer/parakeet";
-import type { AppRoot, SetupState } from "@fungi.computer/agar";
+import type {
+  AppRoot,
+  SetupNeed,
+  SetupOutcome,
+  SetupState,
+} from "@fungi.computer/agar";
 import { queryKeys } from "@fungi.computer/agar/query";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RowV1 } from "@fungi.computer/gills";
@@ -167,6 +172,34 @@ function ComposeDraft({
   );
 }
 
+/**
+ * What the host knows, so the conversation can speak plainly before a run
+ * fails. `unknown` is a host that does not say (the Hub publishes setup facts
+ * for other needs): no fix is offered for a fact nobody holds, so no button
+ * that opens nothing.
+ */
+export function hostFactsFor(
+  models: SetupState | undefined,
+  ui: Readonly<{ openSetup(need: SetupNeed): Promise<SetupOutcome> }> | null,
+) {
+  return {
+    modelSetup:
+      models === undefined || models === "unknown"
+        ? undefined
+        : {
+            state: models,
+            fix: {
+              label: "Add a model key",
+              onSelect: () => {
+                void ui?.openSetup("model").catch((cause: unknown) => {
+                  console.error("Grove could not open model setup", cause);
+                });
+              },
+            },
+          },
+  };
+}
+
 export function ParakeetConversation({
   session,
   draftIdentity,
@@ -203,25 +236,7 @@ export function ParakeetConversation({
   const ui = connection?.ui ?? null;
   const capabilities = connection?.capabilities;
   // What the host knows, so the conversation can speak plainly before a run fails.
-  const hostFacts = useMemo(
-    () => ({
-      modelSetup:
-        models === undefined
-          ? undefined
-          : {
-              state: models,
-              fix: {
-                label: "Add a model key",
-                onSelect: () => {
-                  void ui?.openSetup("model").catch((cause: unknown) => {
-                    console.error("Grove could not open model setup", cause);
-                  });
-                },
-              },
-            },
-    }),
-    [models, ui],
-  );
+  const hostFacts = useMemo(() => hostFactsFor(models, ui), [models, ui]);
   const onLink = useCallback(
     (href: string) => openAdmissionLink(ui, href),
     [ui],

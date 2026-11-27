@@ -16,6 +16,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@fungi.computer/caps/components/dropdown-menu";
+import { Status } from "@fungi.computer/caps/components/status";
+import { computerQueueNotice } from "@fungi.computer/agar/computer-contracts";
 import { FailureLine } from "@fungi.computer/caps/components/failure-line";
 import { IconButton } from "@fungi.computer/caps/components/icon-button";
 import { AgentHead, useComposer } from "@fungi.computer/parakeet";
@@ -289,6 +291,8 @@ function ChatGill({
   const appContext = useAppContext(connection);
   // Only a host that says so: one that publishes nothing never shows this.
   const modelsMissing = appContext?.setup?.models === "missing";
+  // The Team's first Computer is waiting for room on a full host.
+  const queuedComputer = appContext?.setup?.computer;
   const { directory, inbox } = useInboxData(connection);
   const websites = useWebsiteInbox(connection, services);
   const commands = useMemo(() => createWhistle(), []);
@@ -677,6 +681,17 @@ function ChatGill({
         aria-label="Conversation"
         className="flex min-h-0 min-w-0 flex-1 flex-col"
       >
+        {queuedComputer === undefined ? null : (
+          // A place in line, never a failure: one short row, no toast.
+          <Status
+            className="min-h-8 min-w-0 flex-none px-md"
+            label={computerQueueNotice(queuedComputer.position)}
+            motion="pulse"
+            role="status"
+            size="compact"
+            tone="info"
+          />
+        )}
         {connectModel ? (
           <ChatGillConnectModel agent={headAgent} connection={connection} />
         ) : starting ? (

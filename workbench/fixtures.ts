@@ -1315,6 +1315,8 @@ export function createGroveFixture(
   openBilling: () => Promise<void> = () => Promise.resolve(),
   /** Whether Model keys in this host connects a model, as a real key does. */
   keyConnects = false,
+  /** The Team's first Computer waits behind this many starts, itself included. */
+  computerQueue?: number,
 ) {
   const appContext = store({
     computerId: null,
@@ -1328,6 +1330,9 @@ export function createGroveFixture(
         media: models,
         git: "unknown" as const,
         terminal: "unknown" as const,
+        ...(computerQueue !== undefined && {
+          computer: { state: "queued" as const, position: computerQueue },
+        }),
       },
     }),
   });
