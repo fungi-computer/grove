@@ -355,6 +355,18 @@ function ChatGill({
     draft: startDraft,
     onFailed: returnStartDraft,
   });
+  // A failed open is one toast naming its cause, never inline text in the
+  // empty state. It shows once per failure.
+  const toastUi = connection?.ui ?? null;
+  const toastUiRef = useRef(toastUi);
+  toastUiRef.current = toastUi;
+  useEffect(() => {
+    if (snapshot.error !== null)
+      showConversationToast(toastUiRef.current, {
+        variant: "error",
+        message: snapshot.error,
+      });
+  }, [snapshot.error]);
   const [startFailure, setStartFailure] = useState(false);
 
   const latest = useMemo(() => {
@@ -598,12 +610,7 @@ function ChatGill({
         <p className="text-sm text-dim">
           {startFailure
             ? "The conversation could not be started."
-            : snapshot.error !== null
-              ? failureMessage(
-                  "The conversation could not be started",
-                  snapshot.error,
-                )
-              : "No conversation is open."}
+            : "No conversation is open."}
         </p>
         <Button
           variant="outline"

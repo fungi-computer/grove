@@ -1,5 +1,23 @@
 # @fungi.computer/grove
 
+## 0.30.1
+
+### Patch Changes
+
+- Changes since 0.30.0:
+
+  - fix(grove): dismiss the first toast before asserting the second in the
+    workbench proof
+  - fix(grove): toast a beside open failure directly, apart from the view's
+  - fix(grove): reject the chat gill test's open failure with its Error
+  - fix(grove): show a failed open as one toast, not inline text
+
+- @fungi.computer/agar@0.30.2
+  - @fungi.computer/parakeet@0.19.10
+  - @fungi.computer/shiitake@0.24.5
+  - @fungi.computer/knapsack@0.4.40
+  - @fungi.computer/shiitake-extensions@0.15.7
+
 ## 0.30.0
 
 ### Minor Changes

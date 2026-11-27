@@ -606,9 +606,19 @@ function ConnectedInbox({
     agentId: string;
     requestId: string;
   }> | null>(null);
-  const [conversationError, setConversationError] = useState<string | null>(
-    null,
-  );
+  // A failed open is one toast naming its cause, never inline text that
+  // reflows the pane. The primary view's failure toasts once per failure; the
+  // beside opener toasts its own directly, so neither can hide the other.
+  const toastUi = connection?.ui ?? null;
+  const toastUiRef = useRef(toastUi);
+  toastUiRef.current = toastUi;
+  useEffect(() => {
+    if (viewSnapshot.error !== null)
+      showConversationToast(toastUiRef.current, {
+        variant: "error",
+        message: viewSnapshot.error,
+      });
+  }, [viewSnapshot.error]);
   const appContext = useAppContext(connection);
   const openRequest = appContext?.openRequest ?? null;
   const modelsMissing = appContext?.setup?.models === "missing";
@@ -639,7 +649,13 @@ function ConnectedInbox({
             services,
             onPending: () => undefined,
             onConversation: setBesideConversation,
-            onError: setConversationError,
+            onError: (message) => {
+              if (message !== null)
+                showConversationToast(toastUiRef.current, {
+                  variant: "error",
+                  message,
+                });
+            },
             reportsSelection: false,
           }),
     [connection, queryClient, services],
@@ -768,7 +784,6 @@ function ConnectedInbox({
       const request = conversationView.create(cause);
       if (!request.accepted || request.ticket === null) return undefined;
       const ticket = request.ticket;
-      setConversationError(null);
       try {
         // Grove's own first conversation shares one request with the chat
         // widget, so the two frames never make two Sessions.
@@ -1840,13 +1855,6 @@ function ConnectedInbox({
         aria-label="Conversation"
       >
         <TeamNotices app={connection} />
-        {(conversationError ?? viewSnapshot.error) ? (
-          <Alert
-            className="inbox-error m-2"
-            tone="error"
-            title={conversationError ?? viewSnapshot.error ?? ""}
-          />
-        ) : null}
         {websites.selected ? (
           <Suspense fallback={null}>
             <WebsiteConversation inbox={websites} ui={connection?.ui ?? null} />
