@@ -1,5 +1,15 @@
 # @fungi.computer/grove
 
+## 0.30.2
+
+### Patch Changes
+
+- @fungi.computer/agar@0.30.3
+  - @fungi.computer/parakeet@0.19.11
+  - @fungi.computer/shiitake@0.24.6
+  - @fungi.computer/knapsack@0.4.41
+  - @fungi.computer/shiitake-extensions@0.15.8
+
 ## 0.30.1
 
 ### Patch Changes
